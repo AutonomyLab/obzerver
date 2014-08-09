@@ -9,11 +9,13 @@ set(CMAKE_BUILD_TYPE Debug)
 set(obzerver_SOURCES
     src/demo.cpp
     src/utility.cpp
+    src/camera_tracker.cpp
 )
 
 set(obzerver_HEADERS
     include/obzerver/utility.hpp
     include/obzerver/circular_buffer.hpp
+    include/obzerver/camera_tracker.hpp
 )
 
 find_package(OpenCV REQUIRED NO_DEFAULT_PATH PATHS /home/autolab/Dev/opencv-2.4.9/build)

@@ -1,7 +1,7 @@
 #include <iostream>
 
 
-#include "obzerver/utils.h"
+#include "obzerver/utility.hpp"
 
 int main(int argc, char* argv[]) {
   return 0;
