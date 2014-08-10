@@ -10,6 +10,7 @@ class CircularBuffer {
 private:
   std::size_t max_sz;
   std::deque<T> buffer;
+  T dummy;
 
 public:
   typedef typename std::deque<T>::iterator iterator;
@@ -136,7 +137,7 @@ public:
 
   // These are two special functions
   // if index i corresponds to time t-i
-  // prev_front(offset) is object at time t-offset
+  // prev(offset) is object at time t-offset
   // You should always use push_front() to benefit from this
   // throws std::out_of_range on failure
   const_reference prev(const std::size_t offset = 1) const {
