@@ -8,21 +8,6 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/gpu/gpumat.hpp"
 
-class StepBenchmarker {
-private:
-    long int last_tick;
-    typedef std::pair<std::string, double> tick_t;
-    std::vector<tick_t> items;
-    double update();
-
-public:
-    StepBenchmarker();
-    void reset();
-    void tick();
-    void tick(const std::string& text);
-    void dump(const bool clear_screen = false) const;
-};
-
 // TODO: Don't change the vec
 bool CalcVecDFT(std::vector<float>& vec, std::vector<float>& fft_power, const std::vector<float>& win, const unsigned int remove_count = 0, const bool verbose = false);
 

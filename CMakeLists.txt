@@ -4,16 +4,18 @@ find_package(PkgConfig)
 
 set(WITH_TESTS 1 CACHE BOOL "Build Tests (Requires Google Testing Framework)")
 
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
 set(obzerver_SOURCES
     src/demo.cpp
     src/utility.cpp
+    src/benchmarker.cpp
     src/camera_tracker.cpp
 )
 
 set(obzerver_HEADERS
     include/obzerver/utility.hpp
+    include/obzerver/benchmarker.hpp
     include/obzerver/circular_buffer.hpp
     include/obzerver/camera_tracker.hpp
 )

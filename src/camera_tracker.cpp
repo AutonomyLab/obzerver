@@ -21,7 +21,8 @@ CameraTracker::CameraTracker(const std::size_t hist_len,
   max_features(max_features),
   pylk_winsize(pylk_winsize),
   pylk_iters(pylk_iters),
-  pylk_eps(pylk_eps)
+  pylk_eps(pylk_eps),
+  ticker(StepBenchmarker::GetInstance())
 
 {
   ;
@@ -29,81 +30,85 @@ CameraTracker::CameraTracker(const std::size_t hist_len,
 
 bool CameraTracker::Update(const cv::Mat &frame_gray) {
   frame_gray_hist.push_front(frame_gray);
+  ticker.tick("  [CT] Frame Copy");
   if (!initialized) {
-      camera_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1)); // TODO: Check the type
-      initialized = true;
-      return false;
-    }
+    camera_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1)); // TODO: Check the type
+    initialized = true;
+    return false;
+  }
 
   kpts.clear();
   feature_detector->detect(frame_gray_hist.prev(), kpts);
+  ticker.tick("  [CT] Feature Detection");
   LOG(INFO) << "[CT] Keypoints: " << kpts.size();
   std::size_t pts_to_copy = 0;
 
   if (kpts.size() > max_features) {
-      std::sort(kpts.begin(), kpts.end(), KeypointsGreaterThan());
-      pts_to_copy = max_features;
-    } else {
-      pts_to_copy = kpts.size();
-    }
+    std::sort(kpts.begin(), kpts.end(), KeypointsGreaterThan());
+    pts_to_copy = max_features;
+  } else {
+    pts_to_copy = kpts.size();
+  }
 
+  ticker.tick("  [CT] Sorting");
   LOG(INFO) << "[CT] Keypoints to copy: " << pts_to_copy;
 
   detected_features_prev.resize(pts_to_copy);
   for (size_t id = 0; id < pts_to_copy; id++) {
-      detected_features_prev[id] = kpts.at(id).pt;
+    detected_features_prev[id] = kpts.at(id).pt;
   }
 
   tracking_status.clear();
 
   if (detected_features_prev.size()) {
-      cv::calcOpticalFlowPyrLK(
-            frame_gray_hist.prev(),
-            frame_gray_hist.latest(),
-            detected_features_prev,
-            detected_features_curr,
-            tracking_status,
-            cv::noArray(),
-            cv::Size(pylk_winsize, pylk_winsize),
-            3,
-            cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, pylk_iters, pylk_eps),
-            cv::OPTFLOW_LK_GET_MIN_EIGENVALS);
-      tracked_features_prev.clear();
-      tracked_features_prev.clear();
-      for (size_t j = 0; j < tracking_status.size(); j++) {
-          if (tracking_status[j]) {
-              tracked_features_prev.push_back(detected_features_prev[j]);
-              tracked_features_curr.push_back(detected_features_curr[j]);
-          }
+    cv::calcOpticalFlowPyrLK(
+          frame_gray_hist.prev(),
+          frame_gray_hist.latest(),
+          detected_features_prev,
+          detected_features_curr,
+          tracking_status,
+          cv::noArray(),
+          cv::Size(pylk_winsize, pylk_winsize),
+          3,
+          cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, pylk_iters, pylk_eps),
+          cv::OPTFLOW_LK_GET_MIN_EIGENVALS);
+    tracked_features_prev.clear();
+    tracked_features_curr.clear();
+    for (size_t j = 0; j < tracking_status.size(); j++) {
+      if (tracking_status[j]) {
+        tracked_features_prev.push_back(detected_features_prev[j]);
+        tracked_features_curr.push_back(detected_features_curr[j]);
       }
+    }
   } else {
     camera_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1));
     LOG(WARNING) << "[CT] No feature points to track";
     return false;
   }
-
+  ticker.tick("  [CT] Feature Tracking");
   LOG(INFO) << "[CT] Tracked Features: " << tracked_features_curr.size();
   if (tracked_features_curr.size() > 10) {
-      est_transform = cv::findHomography(
-            tracked_features_curr,
-            tracked_features_prev,
-            CV_LMEDS,
-            1.0,
-            est_outliers
-      );
+    est_transform = cv::findHomography(
+          tracked_features_curr,
+          tracked_features_prev,
+          CV_LMEDS,
+          1.0,
+          est_outliers
+          );
 
-      cv::warpPerspective(frame_gray_hist.latest(),
-                          cache_frame_stablized,
-                          est_transform,
-                          frame_gray_hist.latest().size(),
-                          cv::INTER_CUBIC
-      );
+    cv::warpPerspective(frame_gray_hist.latest(),
+                        cache_frame_stablized,
+                        est_transform,
+                        frame_gray_hist.latest().size(),
+                        cv::INTER_CUBIC
+                        );
 
-      camera_hist.push_front(est_transform);
+    camera_hist.push_front(est_transform);
+    ticker.tick("  [CT] Find Homography");
   } else {
-      camera_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1));
-      LOG(WARNING) << "[CT] Not enough feature points to do stablization";
-      return false;
+    camera_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1));
+    LOG(WARNING) << "[CT] Not enough feature points to do stablization";
+    return false;
   }
 
   UpdateDiff();
