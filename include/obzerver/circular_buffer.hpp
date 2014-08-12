@@ -15,6 +15,8 @@ private:
 public:
   typedef typename std::deque<T>::iterator iterator;
   typedef typename std::deque<T>::const_iterator const_iterator;
+  typedef typename std::deque<T>::reverse_iterator reverse_iterator;
+  typedef typename std::deque<T>::const_reverse_iterator const_reverse_iterator;
   typedef typename std::deque<T>::reference reference;
   typedef typename std::deque<T>::const_reference const_reference;
 
@@ -119,19 +121,19 @@ public:
     return buffer.end();
   }
 
-  iterator rbegin() {
+  reverse_iterator rbegin() {
     return buffer.rbegin();
   }
 
-  const_iterator rbegin() const {
+  const_reverse_iterator rbegin() const {
     return buffer.rbegin();
   }
 
-  iterator rend() {
+  reverse_iterator rend() {
     return buffer.rend();
   }
 
-  const_iterator rend() const {
+  const_reverse_iterator rend() const {
     return buffer.rend();
   }
 

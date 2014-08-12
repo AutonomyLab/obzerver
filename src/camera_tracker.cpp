@@ -15,7 +15,7 @@ CameraTracker::CameraTracker(const std::size_t hist_len,
                              double pylk_eps):
   initialized(false),
   hist_len(hist_len),
-  camera_hist(hist_len),
+  camera_transform_hist(hist_len),
   feature_detector(feature_detector),
   frame_gray_hist(2),
   max_features(max_features),
@@ -29,11 +29,12 @@ CameraTracker::CameraTracker(const std::size_t hist_len,
 }
 
 bool CameraTracker::Update(const cv::Mat &frame_gray) {
-  frame_gray_hist.push_front(frame_gray);
+  frame_gray_hist.push_front(frame_gray.clone());
+  LOG(INFO) << "Size: " << frame_gray_hist.size();
   ticker.tick("  [CT] Frame Copy");
   if (!initialized) {
-    camera_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1)); // TODO: Check the type
     initialized = true;
+    FailureUpdate();
     return false;
   }
 
@@ -59,8 +60,8 @@ bool CameraTracker::Update(const cv::Mat &frame_gray) {
   }
 
   tracking_status.clear();
-
   if (detected_features_prev.size()) {
+    detected_features_curr.clear();
     cv::calcOpticalFlowPyrLK(
           frame_gray_hist.prev(),
           frame_gray_hist.latest(),
@@ -81,38 +82,43 @@ bool CameraTracker::Update(const cv::Mat &frame_gray) {
       }
     }
   } else {
-    camera_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1));
     LOG(WARNING) << "[CT] No feature points to track";
+    FailureUpdate();
     return false;
   }
   ticker.tick("  [CT] Feature Tracking");
   LOG(INFO) << "[CT] Tracked Features: " << tracked_features_curr.size();
   if (tracked_features_curr.size() > 10) {
-    est_transform = cv::findHomography(
+    est_homography_transform = cv::findHomography(
           tracked_features_curr,
           tracked_features_prev,
           CV_LMEDS,
           1.0,
-          est_outliers
+          est_homography_outliers
           );
 
     cv::warpPerspective(frame_gray_hist.latest(),
                         cache_frame_stablized,
-                        est_transform,
+                        est_homography_transform,
                         frame_gray_hist.latest().size(),
-                        cv::INTER_CUBIC
+                        cv::INTER_CUBIC,
+                        cv::BORDER_TRANSPARENT
                         );
 
-    camera_hist.push_front(est_transform);
+    camera_transform_hist.push_front(est_homography_transform.clone());
     ticker.tick("  [CT] Find Homography");
   } else {
-    camera_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1));
     LOG(WARNING) << "[CT] Not enough feature points to do stablization";
+    FailureUpdate();
     return false;
   }
 
   UpdateDiff();
   UpdateSOF();
+  ticker.tick("  [CT] Update Diff & SOF");
+
+  UpdateAccumulatedTransforms();
+  ticker.tick("  [CT] Acc Camera Trans");
   return true;
 }
 
@@ -129,9 +135,9 @@ void CameraTracker::UpdateDiff() {
 void CameraTracker::UpdateSOF() {
   tracked_features_curr_stab.clear();
   cache_sof_image = cv::Mat::zeros(cache_frame_stablized.rows, cache_frame_stablized.cols, CV_32FC1);
-  cv::perspectiveTransform(tracked_features_curr, tracked_features_curr_stab, camera_hist.latest());
+  cv::perspectiveTransform(tracked_features_curr, tracked_features_curr_stab, camera_transform_hist.latest());
   for (unsigned int i = 0; i < tracked_features_curr_stab.size(); i++) {
-    if (!est_outliers.data || 1 == est_outliers.at<uchar>(i, 0)) continue; // Skip the inliers
+    if (!est_homography_outliers.data || 1 == est_homography_outliers.at<uchar>(i, 0)) continue; // Skip the inliers
     const cv::Point2f d = tracked_features_curr_stab[i] - tracked_features_prev[i];
     if (tracked_features_curr_stab[i].x >= 0 && tracked_features_curr_stab[i].y >=0 && tracked_features_curr_stab[i].x < cache_sof_image.cols && tracked_features_curr_stab[i].y < cache_sof_image.rows) {
       // Let's assume that there is a max and min displacment for each point
@@ -141,4 +147,24 @@ void CameraTracker::UpdateSOF() {
       }
     }
   }
+}
+
+void CameraTracker::UpdateAccumulatedTransforms() {
+  camera_transform_hist_acc.resize(camera_transform_hist.size());
+  // Skip the last element, it should eye(3,3)
+  unsigned int index = camera_transform_hist_acc.size() - 1;
+  camera_transform_hist_acc[index] = cv::Mat::eye(3, 3, CV_64FC1);
+  for (CircularBuffer<cv::Mat>::const_reverse_iterator it = camera_transform_hist.rbegin() + 1 ;
+       it != camera_transform_hist.rend(); it++) {
+      index--;
+      camera_transform_hist_acc[index] = (*it) * camera_transform_hist_acc[index + 1];
+  }
+}
+
+void CameraTracker::FailureUpdate() {
+  camera_transform_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1)); // TODO: Check the type
+  cache_frame_diff = cv::Mat::zeros(frame_gray_hist.latest().size(), CV_8UC1);
+  cache_sof_image = cv::Mat::zeros(frame_gray_hist.latest().size(), CV_8UC1);
+  cache_frame_stablized = frame_gray_hist.latest().clone();
+  UpdateAccumulatedTransforms();
 }

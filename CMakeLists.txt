@@ -31,14 +31,22 @@ if(OpenCV_FOUND)
     #message(STATUS ${LIBS})
 endif(OpenCV_FOUND)
 
+#find_package(MRPT REQUIRED base bayes)
+#include_directories(${MRPT_INCLUDE_DIRS})
+#set(LIBS ${LIBS} ${MRPT_LIBS})
+
 # glog debian package is available only on Ubuntu Trusy+
 pkg_check_modules(GLOG REQUIRED libglog)
 include_directories(${GLOG_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${GLOG_LIBRARIES})
 
-message(STATUS "Libs: ${LIBS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER} -std=c++0x")
+add_subdirectory("3rdparty/smctc")
+include_directories(${smctc_SOURCE_DIR}/include)
+set(LIBS ${LIBS} "smctc")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER}")
+message(STATUS "Libs: ${LIBS}")
+message(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
 
 add_executable(demo ${obzerver_SOURCES} ${obzerver_HEADERS})
 
