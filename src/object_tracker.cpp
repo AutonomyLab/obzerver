@@ -1,6 +1,8 @@
 #include "glog/logging.h"
 
 #include "obzerver/object_tracker.hpp"
+#include "obzerver/utility.hpp"
+
 #include "opencv2/core/core.hpp"
 
 smc_shared_param_t* shared_data;
@@ -9,14 +11,21 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
 {
   int NN = 1; // Prevent div/0
   double corr_weight = 0.0;
+//  cv::Rect bb = ClampRect(
+//        cv::Rect(X.bb.tl().x - 9, X.bb.tl().y - 9, 19, 19),
+//        cv::Rect(
+//          shared_data->crop, shared_data->crop,
+//          shared_data->obs_diff.cols - shared_data->crop, shared_data->obs_diff.rows - shared_data->crop
+//          )
+//        );
   for (int i = -9; i < 10; i+=2) {
     for (int j = -9; j < 10; j+=2) {
       int xx = (int) round(X.bb.tl().x) - i;
       int yy = (int) round(X.bb.tl().y) - j;
-      if (xx < 30 ||
-          yy < 30 ||
-          xx > (shared_data->obs_diff.cols - 30) ||
-          yy > (shared_data->obs_diff.rows - 30))
+      if (xx < shared_data->crop ||
+          yy < shared_data->crop ||
+          xx > (shared_data->obs_diff.cols - shared_data->crop) ||
+          yy > (shared_data->obs_diff.rows - shared_data->crop))
       {
         continue;
       }
@@ -24,6 +33,8 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
       corr_weight += shared_data->obs_diff.ptr<uchar>(yy)[xx];
     }
   }
+//  double corr_weight = cv::mean(shared_data->obs_diff(bb))[0];
+  corr_weight /= NN;
   return fabs(corr_weight) > 1e-12 ? log(corr_weight) : -12.0;
 }
 
@@ -38,7 +49,7 @@ smc::particle<particle_state_t> ParticleInitialize(smc::rng *rng)
 void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
 {
   particle_state_t* cv_to = X.GetValuePointer();
-  if (rng->Uniform(0.0, 1.0) > 0.1) {
+  if (rng->Uniform(0.0, 1.0) > shared_data->prob_random_move) {
     cv_to->bb.x += rng->Normal(0, 10);
     cv_to->bb.y += rng->Normal(0, 10);
   } else {
@@ -49,9 +60,10 @@ void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
 }
 
 // We are sharing img_diff and img_sof by reference (no copy)
-ObjectTracker::ObjectTracker(std::size_t num_particles)
+ObjectTracker::ObjectTracker(std::size_t num_particles, const unsigned short int crop, const double prob_random_move)
   :num_particles(num_particles),
-   crop(30),
+   crop(crop),
+   prob_random_move(prob_random_move),
    sampler(num_particles, SMC_HISTORY_NONE),
    moveset(ParticleInitialize, ParticleMove),
    ticker(StepBenchmarker::GetInstance())
@@ -59,6 +71,8 @@ ObjectTracker::ObjectTracker(std::size_t num_particles)
   shared_data = new smc_shared_param_t();
   shared_data->crop = crop;
   shared_data->num_particles = num_particles;
+  shared_data->prob_random_move = prob_random_move;
+
   sampler.SetResampleParams(SMC_RESAMPLE_SYSTEMATIC, 0.5);
   sampler.SetMoveSet(moveset);
   sampler.Initialise();
