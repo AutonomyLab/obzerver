@@ -8,13 +8,15 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/gpu/gpumat.hpp"
 
+#include <iostream>
 // TODO: Don't change the vec
 bool CalcVecDFT(std::vector<float>& vec, std::vector<float>& fft_power, const std::vector<float>& win, const unsigned int remove_count = 0, const bool verbose = false);
 
 /* Misc */
 
-inline cv::Point2f rectCenter(const cv::Rect& r) {
-    return cv::Point2f(r.x + (r.width/2), r.y + (r.height/2));
+template<class T>
+inline cv::Point_<T> rectCenter(const cv::Rect_<T>& r) {
+    return cv::Point_<T>(r.x + (r.width/static_cast<T>(2)), r.y + (r.height/static_cast<T>(2)));
 }
 
 inline cv::Point2f transformPoint(const cv::Point2f& pt, const cv::Mat& m) {
@@ -28,9 +30,20 @@ inline cv::Point2f transformPoint(const cv::Point2f& pt, const cv::Mat& m) {
     return cv::Point2f(pt_res[0][0] / pt_res[2][0], pt_res[0][1] / pt_res[2][0]);
 }
 
+class trackbar_data_t {
+public:
+  cv::VideoCapture* cap_p;
+  unsigned long int* frame_num_p;
+  trackbar_data_t(cv::VideoCapture* cap_p, unsigned long int* frame_num_p):
+    cap_p(cap_p), frame_num_p(frame_num_p) {;}
+};
+
 inline void trackbarCallback(int pos, void* data) {
-    cv::VideoCapture* cap = (cv::VideoCapture*) data;
-    cap->set(CV_CAP_PROP_POS_FRAMES, pos);
+    //cv::VideoCapture* cap = (cv::VideoCapture*) data;
+  trackbar_data_t* t_data = (trackbar_data_t*) data;
+  if (pos == (int) *(t_data->frame_num_p)) return;
+  t_data->cap_p->set(CV_CAP_PROP_POS_FRAMES, pos);
+  *(t_data->frame_num_p) = pos;
 }
 
 template <typename T> inline T clamp (T x, T a, T b)
