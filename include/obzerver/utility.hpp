@@ -31,6 +31,11 @@ inline cv::Rect_<T> ClampRect(const cv::Rect_<T>& rect, const cv::Rect_<T>& boun
   return res;
 }
 
+template<class T>
+inline cv::Rect_<T> ClampRect(const cv::Rect_<T>& rect, const T& width, const T& height) {
+  return ClampRect(rect, cv::Rect_<T>(0, 0, width, height));
+}
+
 inline cv::Point2f transformPoint(const cv::Point2f& pt, const cv::Mat& m) {
     CV_Assert(m.cols == 3 && m.rows == 3);
     cv::Mat_<double> pt_vec = cv::Mat_<double>(3, 1);

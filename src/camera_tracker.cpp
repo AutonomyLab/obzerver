@@ -126,9 +126,12 @@ void CameraTracker::UpdateDiff() {
   cv::Scalar thres_mean;
   cv::Scalar thres_stddev;
 
-  cv::absdiff(cache_frame_stablized, frame_gray_hist.prev(), cache_frame_diff);
-  cv::meanStdDev(cache_frame_diff, thres_mean, thres_stddev);
-  cv::threshold(cache_frame_diff, cache_frame_diff, thres_mean[0] + thres_stddev[0], 0, cv::THRESH_TOZERO);
+  cv::Mat diff;
+  cv::absdiff(cache_frame_stablized, frame_gray_hist.prev(), diff);
+  cv::meanStdDev(diff, thres_mean, thres_stddev);
+  cv::threshold(diff, diff, thres_mean[0] + thres_stddev[0], 0, cv::THRESH_TOZERO);
+
+  cv::addWeighted(cache_frame_diff, 0.2, diff, 0.8, 0, cache_frame_diff);
 }
 
 // TODO: Move all params

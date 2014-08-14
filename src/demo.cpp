@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
   cv::Ptr<cv::FeatureDetector> feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
   CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
   trackbar_data_t trackbar_data(&capture, &frame_counter);
-  ObjectTracker object_tracker(param_num_particles);
+  ObjectTracker object_tracker(param_num_particles, param_hist_len);
 
   LOG(INFO) << "Video Source: " << video_src;
 
@@ -132,7 +132,6 @@ int main(int argc, char* argv[]) {
 //        _w = sqrt(sampler.Integrate(integrand_var_x, (void*) &(center.x)));
 //        _h = sqrt(sampler.Integrate(integrand_var_y, (void*) &(center.y)));
 //        LOG(INFO) << center << " : " << _w<< " - " <<  _h;
-        ticker.tick("Particle Filter");
       }
 
       if (display) {
