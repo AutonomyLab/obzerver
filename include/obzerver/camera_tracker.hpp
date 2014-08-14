@@ -75,6 +75,7 @@ public:
   const pts_vec_t& GetTrackedFeaturesCurr() const {return tracked_features_curr;}
   const pts_vec_t& GetTrackedFeaturesPrev() const {return tracked_features_prev;}
   const cv::Mat& GetHomographyOutliers() const {return est_homography_outliers;}
+  const cv::Mat& GetLatestCameraTransform() const {return camera_transform_hist.latest(); }
 };
 
 #endif // CAMERATRACKER_HPP

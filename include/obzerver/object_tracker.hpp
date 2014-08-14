@@ -11,6 +11,7 @@
 struct smc_shared_param_t {
   cv::Mat obs_diff;
   cv::Mat obs_sof;
+  cv::Mat camera_transform; // From t->t-1
   unsigned short int crop;
   std::size_t num_particles;
   double prob_random_move;
@@ -73,11 +74,11 @@ protected:
   cv::Mat labels;
   cv::Mat centers;
   double clustering_err_threshold;
-  CircularBuffer<TObject> object_hist;
+  TObject tobject;
 
   StepBenchmarker& ticker;
 
-  cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const float alpha, const int boundary_width, const int boundary_height);
+  cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const float alpha, const float max_width, const int boundary_width, const int boundary_height);
 public:
   ObjectTracker(const std::size_t num_particles,
                 const std::size_t hist_len,
@@ -86,7 +87,7 @@ public:
                 const double mm_displacement_noise_stddev = 5);
   ~ObjectTracker();
 
-  bool Update(const cv::Mat& img_diff, const cv::Mat& img_sof);
+  bool Update(const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform);
 
   cv::Rect GetBoundingBox(unsigned int t = 0) const;
   void DrawParticles(cv::Mat& img);

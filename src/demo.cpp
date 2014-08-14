@@ -126,7 +126,9 @@ int main(int argc, char* argv[]) {
       if (!ct_success) {
         LOG(WARNING) << "Camera Tracker Failed";
       } else {
-        object_tracker.Update(camera_tracker.GetLatestDiff(), camera_tracker.GetLatestSOF());
+        object_tracker.Update(camera_tracker.GetLatestDiff(),
+                              camera_tracker.GetLatestSOF(),
+                              camera_tracker.GetLatestCameraTransform());
 //        center.x = sampler.Integrate(integrand_mean_x, NULL);
 //        center.y = sampler.Integrate(integrand_mean_y, NULL);
 //        _w = sqrt(sampler.Integrate(integrand_var_x, (void*) &(center.x)));
