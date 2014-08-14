@@ -2,6 +2,7 @@
 #include <iomanip>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include "glog/logging.h"
 
 #include "obzerver/utility.hpp"
 #include "obzerver/self_similarity.hpp"
@@ -9,7 +10,7 @@
 
 
 SelfSimilarity::SelfSimilarity(const std::size_t hist_len):
-  hist_len(hist_len), sequence(hist_len)
+  hist_len(hist_len), sequence(hist_len), ticker(StepBenchmarker::GetInstance())
 {;}
 
 std::size_t SelfSimilarity::GetHistoryLen() const {
@@ -74,7 +75,7 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
 
 
 void SelfSimilarity::Update(const cv::Mat& m, const bool reset) {
-  if (reset) sequence.clear();
+  if (reset) Reset();
   sequence.push_front(m);
   Update();
 }
@@ -91,13 +92,12 @@ void SelfSimilarity::Update() {
   const std::size_t w = quick_median(widths);
   const std::size_t h = quick_median(heights);
 
-  std::cout << "Median Size: " << w << ", " << h << " @ " << sequence.size() << std::endl;
+  LOG(INFO) << "Median Size: " << w << ", " << h << " @ " << sequence.size();
 
   sim_matrix = cv::Mat::zeros(sequence.size(), sequence.size(), CV_32FC1);
   //cv::Mat m1_resized = cv::Mat::zeros(h, w, CV_8UC1);
   //cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
   cv::Mat buff = cv::Mat::zeros(h, w, CV_8UC1);
-  std::cout << "=========" << std::endl;
   for (std::size_t t1 = 0; t1 < 1/*sequence.size()*/; t1++) {
     for (std::size_t t2 = 0; t2 < sequence.size(); t2++) {
       //cv::resize(sequence.at(t1), m1_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
@@ -106,13 +106,9 @@ void SelfSimilarity::Update() {
       //const float s = CalcFramesSimilarity(m1, m2, buff);
       const float s = CalcFramesSimilarity(sequence.at(t1), sequence.at(t2), buff, t2);
       sim_matrix.at<float>(t1, t2) = s;
-      if (t1 == 0) {
-        std::cout << s << " ";
-      }
       //sim_matrix.at<float>(t2, t1) = s;
     }
   }
-  std::cout << std::endl << "=========" << std::endl;
 }
 
 

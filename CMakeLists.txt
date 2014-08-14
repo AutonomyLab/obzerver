@@ -12,6 +12,7 @@ set(obzerver_SOURCES
     src/benchmarker.cpp
     src/camera_tracker.cpp
     src/object_tracker.cpp
+    src/self_similarity.cpp
 )
 
 set(obzerver_HEADERS
@@ -20,6 +21,7 @@ set(obzerver_HEADERS
     include/obzerver/circular_buffer.hpp
     include/obzerver/camera_tracker.hpp
     include/obzerver/object_tracker.hpp
+    include/obzerver/self_similarity.hpp
 )
 
 find_package(OpenCV REQUIRED NO_DEFAULT_PATH PATHS /home/autolab/Dev/opencv-2.4.9/build)

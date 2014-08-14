@@ -84,6 +84,7 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   num_clusters(0),
   clustering_err_threshold(100),
   tobject(),
+  self_similarity(hist_len),
   ticker(StepBenchmarker::GetInstance())
 {
   shared_data = new smc_shared_param_t();
@@ -103,7 +104,7 @@ ObjectTracker::~ObjectTracker() {
   LOG(INFO) << "Object tracker destroyed.";
 }
 
-bool ObjectTracker::Update(const cv::Mat &img_diff, const cv::Mat &img_sof, const cv::Mat &camera_transform)
+bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, const cv::Mat &img_sof, const cv::Mat &camera_transform)
 {
   CV_Assert(img_diff.type() == CV_8UC1);
   //CV_Assert(img_sof.type() == CV_8UC1);
@@ -177,6 +178,7 @@ bool ObjectTracker::Update(const cv::Mat &img_diff, const cv::Mat &img_sof, cons
       // All pts are condensed enough to form a bounding box
       tobject = GenerateBoundingBox(pts, 2.0, 100.0, img_diff.cols, img_diff.rows);
       status = TRACKING_STATUS_TRACKING;
+      self_similarity.Reset();
       tracking_counter = 15;
     }
   } else if (status == TRACKING_STATUS_TRACKING) {
@@ -187,6 +189,7 @@ bool ObjectTracker::Update(const cv::Mat &img_diff, const cv::Mat &img_sof, cons
     if (tracking_counter == 0) {
       LOG(INFO) << "Lost Track";
       status = TRACKING_STATUS_LOST;
+      self_similarity.Reset();
     } else {
       double min_dist = 1e12;
       cv::Rect bb;
@@ -230,6 +233,11 @@ bool ObjectTracker::Update(const cv::Mat &img_diff, const cv::Mat &img_sof, cons
     }
   }
 
+  ticker.tick("  [OT] Tracking");
+  if (status != TRACKING_STATUS_LOST) {
+    self_similarity.Update(img_stab(tobject.bb).clone());
+    ticker.tick("  [OT] Self Similarity");
+  }
   LOG(INFO) << "Tracking Status: " << status  << " Tracked: " << GetBoundingBox();
   return true;
 }

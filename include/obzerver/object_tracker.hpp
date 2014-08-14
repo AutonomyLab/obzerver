@@ -5,6 +5,7 @@
 #include "opencv2/core/core.hpp"
 #include "obzerver/benchmarker.hpp"
 #include "obzerver/circular_buffer.hpp"
+#include "obzerver/self_similarity.hpp"
 
 /* SMC Stuff */
 
@@ -76,6 +77,7 @@ protected:
   double clustering_err_threshold;
   TObject tobject;
 
+  SelfSimilarity self_similarity;
   StepBenchmarker& ticker;
 
   cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const float alpha, const float max_width, const int boundary_width, const int boundary_height);
@@ -87,7 +89,7 @@ public:
                 const double mm_displacement_noise_stddev = 5);
   ~ObjectTracker();
 
-  bool Update(const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform);
+  bool Update(const cv::Mat& img_stab, const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform);
 
   cv::Rect GetBoundingBox(unsigned int t = 0) const;
   void DrawParticles(cv::Mat& img);

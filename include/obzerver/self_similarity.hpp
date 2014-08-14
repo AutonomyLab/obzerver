@@ -21,6 +21,8 @@ private:
 
   cv::Mat render;
 
+  StepBenchmarker& ticker;
+
   float CalcFramesSimilarity(const cv::Mat &m1, const cv::Mat &m2, cv::Mat &buff, const unsigned int index) const;
 
 public:
