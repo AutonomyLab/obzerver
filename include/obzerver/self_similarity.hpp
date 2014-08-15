@@ -12,6 +12,7 @@ class SelfSimilarity {
 
 private:
   std::size_t hist_len;
+  bool debug_mode;
   mseq_t sequence;
   cv::Mat sim_matrix;
 
@@ -23,10 +24,9 @@ private:
 
   StepBenchmarker& ticker;
 
-  float CalcFramesSimilarity(const cv::Mat &m1, const cv::Mat &m2, cv::Mat &buff, const unsigned int index) const;
-
+  float CalcFramesSimilarity(const cv::Mat &m1, const cv::Mat &m2, cv::Mat &buff) const;
 public:
-  SelfSimilarity(const std::size_t hist_len);
+  SelfSimilarity(const std::size_t hist_len, const bool debug_mode = false);
   void Update();
   void Update(const cv::Mat &m, const bool reset = false);
   const cv::Mat& GetSimMatrix() const;

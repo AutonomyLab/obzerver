@@ -2,61 +2,6 @@
 #include <iostream>
 #include <cassert>
 
-bool CalcVecDFT(std::vector<float>& vec, std::vector<float>& fft_power, const std::vector<float>& win, const unsigned int remove_count, const bool verbose)
-{
-    //assert(vec.size() == cv::getOptimalDFTSize(GetHistoryLen()));
-
-    std::vector<float> dft_out;
-    assert(vec.size() == win.size());
-    fft_power.clear();
-    if (verbose) {
-        //std::cout << "FFT for: " << feature_history[0] << std::endl;
-        for (unsigned int i = 0; i < vec.size(); i++) {
-            std::cout << vec[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    cv::Scalar mean = cv::mean(vec);
-    for (unsigned int i = 0; i < vec.size(); i++) {
-        vec[i] = (vec[i] - mean[0]) * win[i];
-    }
-
-    if (verbose) {
-        std::cout << "Removed Mean & Windowed : " << std::endl;
-        for (unsigned int i = 0; i < vec.size(); i++) {
-            std::cout << vec[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    cv::dft(vec, dft_out, cv::DFT_SCALE);
-
-    // TODO: Optimize
-    //CCS to Magnitude
-    fft_power.resize(vec.size() / 2);
-    fft_power[0] = fabs(dft_out[0]); // sometimes the DC term is negative
-    fft_power[vec.size()/2 - 1] = fabs(dft_out[vec.size()/2 - 1]);
-    unsigned int j = 1;
-    for (unsigned int i = 1; i < vec.size() - 2; i+=2) {
-        fft_power[j++] = sqrt(dft_out[i] * dft_out[i] + dft_out[i+1] * dft_out[i+1]);
-    }
-
-    for (unsigned int i = 0; i < remove_count; i++) {
-        fft_power[i] = 0.0;
-    }
-
-//        if (verbose) {
-//            if (!cv::checkRange(fft_power)) {
-//                std::cout << "============================" << std::endl;
-//            }
-//        }
-    return true;
-}
-
-
-/* Misc */
-
 std::string getCvMatTypeStr(const int type) {
   std::string r;
 

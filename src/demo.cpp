@@ -8,6 +8,8 @@
 #include "obzerver/benchmarker.hpp"
 #include "obzerver/camera_tracker.hpp"
 #include "obzerver/object_tracker.hpp"
+#include "obzerver/self_similarity.hpp"
+#include "obzerver/fft.hpp"
 
 void mouseCallback(int event, int x, int y, int idonnow, void* data) {
   if (event == cv::EVENT_LBUTTONDOWN) {
@@ -36,6 +38,7 @@ int main(int argc, char* argv[]) {
               "{ np | numparticles | 1000 | Number of particles}"
               "{ hi | history | 90 | Length of history (frames) }"
               "{ k  | skip | 0 | Starting frame }"
+              "{ f  | fps | 30.0 | frames per second }"
               "{ h  | help | false | print help message }"
   );
 
@@ -48,6 +51,7 @@ int main(int argc, char* argv[]) {
   bool pause = cmd.get<bool>("pause");
   const std::string logfile = cmd.get<std::string>("logfile");
   const unsigned long int start_frame = cmd.get<unsigned long int>("skip");
+  const float fps = cmd.get<float>("fps");
 
   const std::size_t param_max_features = cmd.get<std::size_t>("numfeatures");
   const std::size_t param_num_particles = cmd.get<std::size_t>("numparticles");
@@ -86,6 +90,8 @@ int main(int argc, char* argv[]) {
   CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
   trackbar_data_t trackbar_data(&capture, &frame_counter);
   ObjectTracker object_tracker(param_num_particles, param_hist_len);
+  SelfSimilarity self_similariy(param_hist_len);
+  Periodicity periodicity(param_hist_len, fps);
 
   LOG(INFO) << "Video Source: " << video_src;
 
@@ -104,8 +110,10 @@ int main(int argc, char* argv[]) {
       cv::namedWindow("Original", cv::WINDOW_AUTOSIZE | cv::WINDOW_OPENGL);
       cv::namedWindow("DiffStab", cv::WINDOW_NORMAL | cv::WINDOW_OPENGL);
       cv::namedWindow("Debug", cv::WINDOW_NORMAL | cv::WINDOW_OPENGL);
-      cv::createTrackbar("Browse", "Original", 0, num_frames, trackbarCallback, &trackbar_data);
-      cv::setTrackbarPos("Browse", "Original", frame_counter);
+      if (num_frames > 0) {
+        cv::createTrackbar("Browse", "Original", 0, num_frames, trackbarCallback, &trackbar_data);
+        cv::setTrackbarPos("Browse", "Original", frame_counter);
+      }
       cv::setMouseCallback("Original", mouseCallback, (void*) &pause);
     }
 
@@ -130,6 +138,15 @@ int main(int argc, char* argv[]) {
                               camera_tracker.GetLatestDiff(),
                               camera_tracker.GetLatestSOF(),
                               camera_tracker.GetLatestCameraTransform());
+        if (object_tracker.GetStatus() != TRACKING_STATUS_TRACKING) {
+          if (!self_similariy.IsEmpty()) self_similariy.Reset();
+        } else {
+          self_similariy.Update(camera_tracker.GetStablized()(object_tracker.GetBoundingBox()).clone());
+          if (self_similariy.IsFull()) {
+            periodicity.Update(self_similariy.GetSimMatrix());
+            LOG(INFO) << "Dominant Frequency: " << periodicity.GetDominantFrequency();
+          }
+        }
 //        center.x = sampler.Integrate(integrand_mean_x, NULL);
 //        center.y = sampler.Integrate(integrand_mean_y, NULL);
 //        _w = sqrt(sampler.Integrate(integrand_var_x, (void*) &(center.x)));

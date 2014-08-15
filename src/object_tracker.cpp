@@ -2,6 +2,7 @@
 
 #include "obzerver/object_tracker.hpp"
 #include "obzerver/utility.hpp"
+#include "obzerver/fft.hpp"
 
 #include "opencv2/core/core.hpp"
 
@@ -34,8 +35,9 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
     }
   }
 //  double corr_weight = cv::mean(shared_data->obs_diff(bb))[0];
-  corr_weight /= NN;
-  return fabs(corr_weight) > 1e-12 ? log(corr_weight) : -12.0;
+  corr_weight = (fabs(corr_weight > 1e-6)) ? log(corr_weight/NN) : -13.0;
+  //LOG(INFO) << corr_weight;
+  return corr_weight;
 }
 
 smc::particle<particle_state_t> ParticleInitialize(smc::rng *rng)
@@ -83,8 +85,7 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   tracking_counter(0),
   num_clusters(0),
   clustering_err_threshold(100),
-  tobject(),
-  self_similarity(hist_len),
+  tobject(), // WTF?
   ticker(StepBenchmarker::GetInstance())
 {
   shared_data = new smc_shared_param_t();
@@ -131,17 +132,21 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
 
 
   //std::vector<cv::Point2f> pts(sampler.GetNumber());
+
   std::vector<cv::Point2f> pts;
+  std::vector<cv::Point2f> pts_w;
   for (long i = 0; i < sampler.GetNumber(); i++) {
     const particle_state_t p = sampler.GetParticleValue(i);
+    const double w = sampler.GetParticleWeight(i);
     if (false == p.recent_random_move) {
       //pts[i] = p.bb.tl();
       pts.push_back(p.bb.tl());
+      pts_w.push_back(cv::Point2f(w, w));
+      //LOG(INFO) << i << " " << p.bb << " " << w << " " << pts.back();
     }
   }
 
   LOG(INFO) << "Number of particles to consider: " << pts.size();
-
   if (pts.size() < 0.5 * sampler.GetNumber()) {
     LOG(WARNING) << "Number of non-random partilces are not enough for clustering ...";
     return false;
@@ -163,6 +168,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   }
   if (err <= clustering_err_threshold) {
     num_clusters = k - 1;
+    //centers *= (1.0 / sum_w);
     LOG(INFO) << "Particles: "<< particles_pose.rows << " Number of clusers in particles: " << num_clusters << " Centers" << centers << " err: " << err;
   } else {
     num_clusters = 0;
@@ -176,9 +182,8 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
       LOG(INFO) << "Waiting for first dense cluser ...";
     } else {
       // All pts are condensed enough to form a bounding box
-      tobject = GenerateBoundingBox(pts, 2.0, 100.0, img_diff.cols, img_diff.rows);
+      tobject = GenerateBoundingBox(pts, pts_w, 2.0, 100.0, img_diff.cols, img_diff.rows);
       status = TRACKING_STATUS_TRACKING;
-      self_similarity.Reset();
       tracking_counter = 15;
     }
   } else if (status == TRACKING_STATUS_TRACKING) {
@@ -189,11 +194,11 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
     if (tracking_counter == 0) {
       LOG(INFO) << "Lost Track";
       status = TRACKING_STATUS_LOST;
-      self_similarity.Reset();
     } else {
       double min_dist = 1e12;
       cv::Rect bb;
       std::vector<cv::Point2f> cluster;
+      std::vector<cv::Point2f> cluster_w;
       int min_dist_cluster = 0;
       for (unsigned int i = 0; i < num_clusters; i++) {
           double dist = pow(centers.at<float>(i, 0) - rectCenter(tracked_bb).x, 2);
@@ -214,10 +219,11 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
         for (unsigned int i = 0; i < pts.size(); i++) {
             if (labels.at<int>(i) == min_dist_cluster) {
                 cluster.push_back(pts.at(i));
+                cluster_w.push_back(pts_w.at(i));
             }
         }
         LOG(INFO) << "Subset size: " << cluster.size() << std::endl;
-        bb = GenerateBoundingBox(cluster, 2.0, 100, img_diff.cols, img_diff.rows);
+        bb = GenerateBoundingBox(cluster, cluster_w, 2.0, 100, img_diff.cols, img_diff.rows);
         tracking_counter = 15;
       } else {
         LOG(INFO) << "The closest cluster is far from current object being tracked, skipping";
@@ -234,22 +240,32 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   }
 
   ticker.tick("  [OT] Tracking");
-  if (status != TRACKING_STATUS_LOST) {
-    self_similarity.Update(img_stab(tobject.bb).clone());
-    ticker.tick("  [OT] Self Similarity");
-  }
   LOG(INFO) << "Tracking Status: " << status  << " Tracked: " << GetBoundingBox();
   return true;
 }
 
 cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f>& pts,
+                                            const std::vector<cv::Point2f>& weights,
                                             const float alpha,
                                             const float max_width,
                                             const int boundary_width,
                                             const int boundary_height)
 {
+  // TODO: Fix the variance bias
+  cv::Mat pts_mat(pts, false);
+  cv::Mat w_mat(weights, false);
   cv::Scalar _c, _s;
-  cv::meanStdDev(pts, _c, _s);
+  double sum_w = cv::sum(w_mat.col(0))[0];
+  double sum_w_sqr = cv::sum(w_mat.col(0).mul(w_mat.col(0)))[0];
+  LOG(INFO) << "sum w: " << sum_w << " sum w^2 " << sum_w_sqr;
+  cv::meanStdDev(pts_mat.mul(w_mat), _c, _s);
+  LOG(INFO) << _c[0] << " " << _c[1] << " " << _s[0] <<  " " << _s[1];
+  _c[0] *= (float(pts.size()) / sum_w);
+  _c[1] *= (float(pts.size()) / sum_w);
+//  const double s_w = sum_w / ((sum_w*sum_w) - sum_w_sqr);
+  _s[0] *= (float(pts.size()) / sum_w);
+  _s[1] *= (float(pts.size()) / sum_w);
+  LOG(INFO) << _c[0] << " " << _c[1] << " " << _s[0] <<  " " << _s[1];
   float _e = std::min((float) (2.0 * alpha * std::max(_s[0], _s[1])), max_width);
   cv::Rect bb(int(_c[0] - _e/2.0), int(_c[1] - _e/2.0), _e, _e);
   return ClampRect(bb, boundary_width, boundary_height);

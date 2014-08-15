@@ -9,10 +9,6 @@
 #include "opencv2/gpu/gpumat.hpp"
 
 #include <iostream>
-// TODO: Don't change the vec
-bool CalcVecDFT(std::vector<float>& vec, std::vector<float>& fft_power, const std::vector<float>& win, const unsigned int remove_count = 0, const bool verbose = false);
-
-/* Misc */
 
 template<class T>
 inline cv::Point_<T> rectCenter(const cv::Rect_<T>& r) {

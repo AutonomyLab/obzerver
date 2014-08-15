@@ -9,9 +9,14 @@
 
 
 
-SelfSimilarity::SelfSimilarity(const std::size_t hist_len):
-  hist_len(hist_len), sequence(hist_len), ticker(StepBenchmarker::GetInstance())
-{;}
+SelfSimilarity::SelfSimilarity(const std::size_t hist_len, const bool debug_mode):
+  hist_len(hist_len),
+  debug_mode(debug_mode),
+  sequence(hist_len),
+  ticker(StepBenchmarker::GetInstance())
+{
+  ;
+}
 
 std::size_t SelfSimilarity::GetHistoryLen() const {
   return sequence.size();
@@ -29,7 +34,7 @@ bool SelfSimilarity::IsEmpty() const {
   return (sequence.size() == 0);
 }
 
-float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2, cv::Mat& buff, const unsigned int index) const {
+float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2, cv::Mat& buff) const {
   //CV_Assert(m1.size() == m2.size());
   //cv::absdiff(m1, m2, buff);
   //cv::multiply(buff, buff, buff);
@@ -44,18 +49,20 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
   } else {
     return 1e12;
   }
-  cv::matchTemplate(img, tmpl, buff, CV_TM_SQDIFF);
+  cv::matchTemplate(img, tmpl, buff, CV_TM_CCORR_NORMED);
   double max_val = 0.0, min_val = 0.0;
   cv::Point max_loc, min_loc;
   cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
 
+  //return max_val;
   cv::Rect tmpl_roi;
-  tmpl_roi.x = min_loc.x;
-  tmpl_roi.y = min_loc.y;
+  tmpl_roi.x = max_loc.x;
+  tmpl_roi.y = max_loc.y;
   tmpl_roi.width = std::min(tmpl.cols, img.cols - tmpl_roi.tl().x);
   tmpl_roi.height = std::min(tmpl.rows, img.rows - tmpl_roi.tl().y);
   cv::absdiff(img(tmpl_roi).clone(), tmpl, buff);
 
+  /*
   std::stringstream ss;
 
   ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_roi.bmp";
@@ -68,8 +75,8 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
   ss.str("");
   ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_tpl.bmp";
   cv::imwrite(ss.str(), tmpl);
-
-  return cv::sum(buff)[0];// / float(tmpl_roi.area());
+  */
+  return cv::mean(buff)[0];// / float(tmpl_roi.area());
   //return sqrt(min_val);//cv::sum(buff)[0];// / (float) m1.size().area();
 }
 
@@ -94,21 +101,31 @@ void SelfSimilarity::Update() {
 
   LOG(INFO) << "Median Size: " << w << ", " << h << " @ " << sequence.size();
 
-  sim_matrix = cv::Mat::zeros(sequence.size(), sequence.size(), CV_32FC1);
+  //sim_matrix = cv::Mat::zeros(sequence.size(), sequence.size(), CV_32FC1);
+  sim_matrix = cv::Mat::zeros(sequence.size(), 1, CV_32F);
   //cv::Mat m1_resized = cv::Mat::zeros(h, w, CV_8UC1);
   //cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
   cv::Mat buff = cv::Mat::zeros(h, w, CV_8UC1);
-  for (std::size_t t1 = 0; t1 < 1/*sequence.size()*/; t1++) {
-    for (std::size_t t2 = 0; t2 < sequence.size(); t2++) {
+  for (std::size_t t1 = 0; t1 < sequence.size(); t1++) {
+    //for (std::size_t t2 = 0; t2 < sequence.size(); t2++) {
       //cv::resize(sequence.at(t1), m1_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
       //cv::resize(sequence.at(t2), m2_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
       //const float s = CalcFramesSimilarity(m1_resized, m2_resized, buff);
       //const float s = CalcFramesSimilarity(m1, m2, buff);
-      const float s = CalcFramesSimilarity(sequence.at(t1), sequence.at(t2), buff, t2);
-      sim_matrix.at<float>(t1, t2) = s;
+      const float s = CalcFramesSimilarity(sequence.at(0), sequence.at(t1), buff);
+      sim_matrix.at<float>(t1) = s; // nx1 mat
       //sim_matrix.at<float>(t2, t1) = s;
-    }
+    //}
   }
+
+  if (debug_mode) {
+    LOG(INFO) << sim_matrix.col(0).t();
+    WriteToDisk("./data");
+  }
+
+//  if (IsFull()) {
+//    CalcVecDFT()
+//  }
 }
 
 
@@ -131,7 +148,7 @@ void SelfSimilarity::WriteToDisk(const std::string& path, const std::string& pre
   unsigned int frame_counter = 0;
   for (mseq_t::const_reverse_iterator it = sequence.rbegin(); it != sequence.rend(); it++, frame_counter++) {
     std::stringstream ss;
-    ss << path << prefix << std::setfill('0') << std::setw(5) <<  frame_counter << ".bmp";
+    ss << path << "/" << prefix << std::setfill('0') << std::setw(5) <<  frame_counter << ".bmp";
     cv::imwrite(ss.str(), *it);
   }
 }

@@ -77,10 +77,10 @@ protected:
   double clustering_err_threshold;
   TObject tobject;
 
-  SelfSimilarity self_similarity;
+  cv::Mat hann_window; // FOR FFT
   StepBenchmarker& ticker;
 
-  cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const float alpha, const float max_width, const int boundary_width, const int boundary_height);
+  cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const std::vector<cv::Point2f> &weights, const float alpha, const float max_width, const int boundary_width, const int boundary_height);
 public:
   ObjectTracker(const std::size_t num_particles,
                 const std::size_t hist_len,
@@ -92,6 +92,7 @@ public:
   bool Update(const cv::Mat& img_stab, const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform);
 
   cv::Rect GetBoundingBox(unsigned int t = 0) const;
+  tracking_status_t GetStatus() const {return status;}
   void DrawParticles(cv::Mat& img);
 
 };
