@@ -15,23 +15,6 @@ inline cv::Point_<T> rectCenter(const cv::Rect_<T>& r) {
     return cv::Point_<T>(r.x + (r.width/static_cast<T>(2)), r.y + (r.height/static_cast<T>(2)));
 }
 
-template<class T>
-inline cv::Rect_<T> ClampRect(const cv::Rect_<T>& rect, const cv::Rect_<T>& boundery) {
-  cv::Rect_<T> res = rect;
-  res.x = clamp(rect.x, boundery.tl().x, boundery.br().x);
-  res.y = clamp(rect.y, boundery.tl().y, boundery.br().y);
-  T x2 = clamp(rect.br().x, boundery.tl().x, boundery.br().x);
-  T y2 = clamp(rect.br().y, boundery.tl().y, boundery.br().y);
-  res.width = x2 - res.x;
-  res.height = y2 - res.y;
-  return res;
-}
-
-template<class T>
-inline cv::Rect_<T> ClampRect(const cv::Rect_<T>& rect, const T& width, const T& height) {
-  return ClampRect(rect, cv::Rect_<T>(0, 0, width, height));
-}
-
 inline cv::Point2f transformPoint(const cv::Point2f& pt, const cv::Mat& m) {
     CV_Assert(m.cols == 3 && m.rows == 3);
     cv::Mat_<double> pt_vec = cv::Mat_<double>(3, 1);
@@ -68,6 +51,23 @@ template <typename T> inline T mapValue(T x, T a, T b, T c, T d)
 {
     x = clamp(x, a, b);
     return c + (d - c) * (x - a) / (b - a);
+}
+
+template<class T>
+inline cv::Rect_<T> ClampRect(const cv::Rect_<T>& rect, const cv::Rect_<T>& boundery) {
+  cv::Rect_<T> res = rect;
+  res.x = clamp(rect.x, boundery.tl().x, boundery.br().x);
+  res.y = clamp(rect.y, boundery.tl().y, boundery.br().y);
+  T x2 = clamp(rect.br().x, boundery.tl().x, boundery.br().x);
+  T y2 = clamp(rect.br().y, boundery.tl().y, boundery.br().y);
+  res.width = x2 - res.x;
+  res.height = y2 - res.y;
+  return res;
+}
+
+template<class T>
+inline cv::Rect_<T> ClampRect(const cv::Rect_<T>& rect, const T& width, const T& height) {
+  return ClampRect(rect, cv::Rect_<T>(0, 0, width, height));
 }
 
 // TODO: Why const does not work?

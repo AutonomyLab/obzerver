@@ -4,7 +4,7 @@ find_package(PkgConfig)
 
 set(WITH_TESTS 1 CACHE BOOL "Build Tests (Requires Google Testing Framework)")
 
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 set(obzerver_SOURCES
     src/demo.cpp
@@ -14,6 +14,7 @@ set(obzerver_SOURCES
     src/object_tracker.cpp
     src/self_similarity.cpp
     src/fft.cpp
+    src/tobject.cpp
 )
 
 set(obzerver_HEADERS
@@ -24,6 +25,7 @@ set(obzerver_HEADERS
     include/obzerver/object_tracker.hpp
     include/obzerver/self_similarity.hpp
     include/obzerver/fft.hpp
+    include/obzerver/tobject.hpp
 )
 
 find_package(OpenCV REQUIRED NO_DEFAULT_PATH PATHS /home/autolab/Dev/opencv-2.4.9/build)
@@ -46,13 +48,14 @@ pkg_check_modules(GLOG REQUIRED libglog)
 include_directories(${GLOG_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${GLOG_LIBRARIES})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER} -std=c++0x")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER} -std=c++0x -Wall -Wextra")
 add_subdirectory("3rdparty/smctc")
 include_directories(${smctc_SOURCE_DIR}/include)
 set(LIBS ${LIBS} "smctc")
 
 message(STATUS "Libs: ${LIBS}")
-message(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "CXX Flags (N|D|R): ${CMAKE_CXX_FLAGS} | ${CMAKE_CXX_FLAGS_DEBUG} | ${CMAKE_CXX_FLAGS_RELEASE}")
 
 add_executable(demo ${obzerver_SOURCES} ${obzerver_HEADERS})
 

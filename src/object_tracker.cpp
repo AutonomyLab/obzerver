@@ -70,12 +70,14 @@ void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
 // We are sharing img_diff and img_sof by reference (no copy)
 ObjectTracker::ObjectTracker(const std::size_t num_particles,
                              const std::size_t hist_len,
+                             const float fps,
                              const unsigned short int crop,
                              const double prob_random_move,
                              const double mm_displacement_noise_stddev)
   :
   num_particles(num_particles),
   hist_len(hist_len),
+  fps(fps),
   crop(crop),
   prob_random_move(prob_random_move),
   mm_displacement_noise_stddev(mm_displacement_noise_stddev),
@@ -85,7 +87,7 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   tracking_counter(0),
   num_clusters(0),
   clustering_err_threshold(100),
-  tobject(), // WTF?
+  tobject(hist_len, fps),
   ticker(StepBenchmarker::GetInstance())
 {
   shared_data = new smc_shared_param_t();
@@ -182,17 +184,18 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
       LOG(INFO) << "Waiting for first dense cluser ...";
     } else {
       // All pts are condensed enough to form a bounding box
-      tobject = GenerateBoundingBox(pts, pts_w, 2.0, 100.0, img_diff.cols, img_diff.rows);
+      tobject.Update(img_stab, GenerateBoundingBox(pts, pts_w, 2.0, 100.0, img_diff.cols, img_diff.rows), true);
       status = TRACKING_STATUS_TRACKING;
       tracking_counter = 15;
     }
   } else if (status == TRACKING_STATUS_TRACKING) {
-    cv::Rect tracked_bb = tobject.bb;
+    cv::Rect tracked_bb = tobject().latest().bb;
     cv::Point2f p_stab = transformPoint(tracked_bb.tl(), camera_transform.inv());
     tracked_bb.x = p_stab.x;
     tracked_bb.y = p_stab.y;
     if (tracking_counter == 0) {
       LOG(INFO) << "Lost Track";
+      tobject.Reset();
       status = TRACKING_STATUS_LOST;
     } else {
       double min_dist = 1e12;
@@ -235,12 +238,12 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
       tracked_bb.y = 0.5 * (tracked_bb.y + bb.y);
       tracked_bb.width = 0.5 * (tracked_bb.width + bb.width);
       tracked_bb.height = 0.5 * (tracked_bb.height + bb.height);
-      tobject.bb = tracked_bb;
+      tobject.Update(img_stab, tracked_bb);
     }
   }
 
   ticker.tick("  [OT] Tracking");
-  LOG(INFO) << "Tracking Status: " << status  << " Tracked: " << GetBoundingBox();
+  LOG(INFO) << "Tracking Status: " << status  << " Tracked: " << GetObjectBoundingBox();
   return true;
 }
 
@@ -271,8 +274,13 @@ cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f>& pts,
   return ClampRect(bb, boundary_width, boundary_height);
 }
 
-cv::Rect ObjectTracker::GetBoundingBox(unsigned int t) const {
-  return tobject.bb;
+const TObject &ObjectTracker::GetObject() const
+{
+  return tobject;
+}
+
+cv::Rect ObjectTracker::GetObjectBoundingBox(std::size_t t) const {
+  return (tobject().size()) ? tobject.Get(t).bb : cv::Rect(0, 0, 0, 0);
 }
 
 /* Debug */
@@ -289,6 +297,6 @@ void ObjectTracker::DrawParticles(cv::Mat &img)
   }
 
   if (status != TRACKING_STATUS_LOST) {
-    cv::rectangle(img, GetBoundingBox(), cv::Scalar(127, 127, 127), 5);
+    cv::rectangle(img, GetObjectBoundingBox(), cv::Scalar(127, 127, 127), 5);
   }
 }

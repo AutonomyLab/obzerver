@@ -4,8 +4,7 @@
 #include "smctc/smctc.hh"
 #include "opencv2/core/core.hpp"
 #include "obzerver/benchmarker.hpp"
-#include "obzerver/circular_buffer.hpp"
-#include "obzerver/self_similarity.hpp"
+#include "obzerver/tobject.hpp"
 
 /* SMC Stuff */
 
@@ -39,15 +38,7 @@ void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng* rng);
 
 /* The Tracker */
 
-class TObject {
-public:
-  cv::Rect bb;
-  std::size_t age;
 
-  TObject(): age(0) {;}
-  TObject(const cv::Rect& r): bb(r), age(0) {;}
-  TObject(const cv::Rect &r, const std::size_t age): bb(r), age(age) {;}
-};
 
 enum tracking_status_t {
   TRACKING_STATUS_LOST = 0,
@@ -61,6 +52,7 @@ class ObjectTracker {
 protected:
   std::size_t num_particles;
   std::size_t hist_len;
+  float fps;
   unsigned short int crop; //px
   double prob_random_move; //[0,1]
   double mm_displacement_noise_stddev; //px
@@ -77,13 +69,13 @@ protected:
   double clustering_err_threshold;
   TObject tobject;
 
-  cv::Mat hann_window; // FOR FFT
   StepBenchmarker& ticker;
 
   cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const std::vector<cv::Point2f> &weights, const float alpha, const float max_width, const int boundary_width, const int boundary_height);
 public:
   ObjectTracker(const std::size_t num_particles,
                 const std::size_t hist_len,
+                const float fps,
                 const unsigned short int crop = 30,
                 const double prob_random_move = 0.2,
                 const double mm_displacement_noise_stddev = 5);
@@ -91,8 +83,10 @@ public:
 
   bool Update(const cv::Mat& img_stab, const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform);
 
-  cv::Rect GetBoundingBox(unsigned int t = 0) const;
+  const TObject& GetObject() const;
+  cv::Rect GetObjectBoundingBox(std::size_t t = 0) const;
   tracking_status_t GetStatus() const {return status;}
+  bool IsTracking() const {return status == TRACKING_STATUS_TRACKING;}
   void DrawParticles(cv::Mat& img);
 
 };

@@ -8,8 +8,6 @@
 #include "obzerver/benchmarker.hpp"
 #include "obzerver/camera_tracker.hpp"
 #include "obzerver/object_tracker.hpp"
-#include "obzerver/self_similarity.hpp"
-#include "obzerver/fft.hpp"
 
 void mouseCallback(int event, int x, int y, int idonnow, void* data) {
   if (event == cv::EVENT_LBUTTONDOWN) {
@@ -89,9 +87,8 @@ int main(int argc, char* argv[]) {
   cv::Ptr<cv::FeatureDetector> feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
   CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
   trackbar_data_t trackbar_data(&capture, &frame_counter);
-  ObjectTracker object_tracker(param_num_particles, param_hist_len);
-  SelfSimilarity self_similariy(param_hist_len);
-  Periodicity periodicity(param_hist_len, fps);
+  ObjectTracker object_tracker(param_num_particles, param_hist_len, fps);
+
 
   LOG(INFO) << "Video Source: " << video_src;
 
@@ -133,20 +130,31 @@ int main(int argc, char* argv[]) {
       double _w=0.0, _h=0.0;
       if (!ct_success) {
         LOG(WARNING) << "Camera Tracker Failed";
+        // TODO
       } else {
         object_tracker.Update(camera_tracker.GetStablized(),
                               camera_tracker.GetLatestDiff(),
                               camera_tracker.GetLatestSOF(),
                               camera_tracker.GetLatestCameraTransform());
-        if (object_tracker.GetStatus() != TRACKING_STATUS_TRACKING) {
-          if (!self_similariy.IsEmpty()) self_similariy.Reset();
-        } else {
-          self_similariy.Update(camera_tracker.GetStablized()(object_tracker.GetBoundingBox()).clone());
-          if (self_similariy.IsFull()) {
-            periodicity.Update(self_similariy.GetSimMatrix());
-            LOG(INFO) << "Dominant Frequency: " << periodicity.GetDominantFrequency();
-          }
+
+
+        LOG(INFO) << "Tracking status: " << object_tracker.GetStatus();
+        if (object_tracker.IsTracking()) {
+          LOG(INFO) << "Object: "
+                    << object_tracker.GetObjectBoundingBox()
+                    << " Periodicity:"
+                    << object_tracker.GetObject().GetPeriodicity().GetDominantFrequency();
         }
+
+//        if (object_tracker.GetStatus() != TRACKING_STATUS_TRACKING) {
+//          if (!self_similariy.IsEmpty()) self_similariy.Reset();
+//        } else {
+//          self_similariy.Update(camera_tracker.GetStablized()(object_tracker.GetBoundingBox()).clone());
+//          if (self_similariy.IsFull()) {
+//            periodicity.Update(self_similariy.GetSimMatrix());
+//            LOG(INFO) << "Dominant Frequency: " << periodicity.GetDominantFrequency();
+//          }
+//        }
 //        center.x = sampler.Integrate(integrand_mean_x, NULL);
 //        center.y = sampler.Integrate(integrand_mean_y, NULL);
 //        _w = sqrt(sampler.Integrate(integrand_var_x, (void*) &(center.x)));

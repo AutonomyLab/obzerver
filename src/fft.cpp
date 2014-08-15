@@ -25,7 +25,8 @@ void Periodicity::Update(const cv::Mat &vec) {
 
 
 float Periodicity::GetDominantFrequency(const std::size_t start_index) const {
-  CV_Assert(fft_power.size() && start_index < fft_power.size());
+  if (!fft_power.size()) return -1.0;
+  CV_Assert(start_index < fft_power.size());
   cv::Scalar mean, stddev;
   cv::meanStdDev(fft_power, mean, stddev);
   const double dom_freq_cst = mean[0] + 3.0 * stddev[0];
@@ -44,7 +45,7 @@ float Periodicity::GetDominantFrequency(const std::size_t start_index) const {
     return float(max_power_freq_index) * fps / hist_len;
   }
 
-  return -1;
+  return -1.0;
 
 }
 bool CalcVecDFT(const cv::Mat& vec_m,
