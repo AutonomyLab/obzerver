@@ -96,7 +96,8 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   shared_data->prob_random_move = prob_random_move;
   shared_data->mm_displacement_stddev = mm_displacement_noise_stddev;
 
-  sampler.SetResampleParams(SMC_RESAMPLE_SYSTEMATIC, 0.5);
+  //sampler.SetResampleParams(SMC_RESAMPLE_SYSTEMATIC, 0.5);
+  sampler.SetResampleParams(SMC_RESAMPLE_STRATIFIED, 0.9);
   sampler.SetMoveSet(moveset);
   sampler.Initialise();
 

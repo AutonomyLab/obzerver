@@ -8,6 +8,7 @@ function result = myfft(signal, Fs)
 
 
 	hann_window = transpose(hanning(N));
+    %hann_window = transpose(hamming(N));
 	avg = mean(signal);
 	
 	str = sprintf('Sampling Freq: %f Number of Samples: %d StopTime: %fi Avg: %f dF: %f', Fs, N, StopTime, avg, dF);
@@ -28,6 +29,6 @@ function result = myfft(signal, Fs)
 	figure;
 	plot(t, detrend(signal)); title('detrend'); grid on;
 	figure;
-	plot(f(1:N/2), power_ft_signal(1:N/2)); title('|ft|'); grid on;
+	plot(f(1:N/2), power_ft_signal(1:N/2), 'b--+'); title('|ft|'); grid on;
 
 	result = power_ft_signal;

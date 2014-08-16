@@ -143,7 +143,8 @@ int main(int argc, char* argv[]) {
           LOG(INFO) << "Object: "
                     << object_tracker.GetObjectBoundingBox()
                     << " Periodicity:"
-                    << object_tracker.GetObject().GetPeriodicity().GetDominantFrequency();
+                    << object_tracker.GetObject().GetPeriodicity().GetDominantFrequency(1);
+          //LOG(INFO) << "Spectrum: " << cv::Mat(object_tracker.GetObject().GetPeriodicity().GetSpectrum(), false);
         }
 
 //        if (object_tracker.GetStatus() != TRACKING_STATUS_TRACKING) {

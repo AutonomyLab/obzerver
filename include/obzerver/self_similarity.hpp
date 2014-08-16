@@ -24,7 +24,7 @@ private:
 
   StepBenchmarker& ticker;
 
-  float CalcFramesSimilarity(const cv::Mat &m1, const cv::Mat &m2, cv::Mat &buff) const;
+  float CalcFramesSimilarity(const cv::Mat &m1, const cv::Mat &m2, cv::Mat &buff, const unsigned int index) const;
 public:
   SelfSimilarity(const std::size_t hist_len, const bool debug_mode = false);
   void Update();

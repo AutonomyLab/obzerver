@@ -1,7 +1,12 @@
 
 #include <iomanip>
+#include <stdexcept>
+
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include "opencv2/video/tracking.hpp"
+//#include "opencv2/features2d/features2d.hpp"
+
 #include "glog/logging.h"
 
 #include "obzerver/utility.hpp"
@@ -34,49 +39,78 @@ bool SelfSimilarity::IsEmpty() const {
   return (sequence.size() == 0);
 }
 
-float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2, cv::Mat& buff) const {
+float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2, cv::Mat& buff, const
+                                            unsigned int index) const {
   //CV_Assert(m1.size() == m2.size());
   //cv::absdiff(m1, m2, buff);
   //cv::multiply(buff, buff, buff);
   cv::Mat img, tmpl;
+  bool reversed = false;
   if (m1.cols >= m2.cols && m1.rows >= m2.rows) {
-    img = m1;
-    tmpl = m2;
-
+    //img = m1.clone();
+    tmpl = m2.clone();
+    cv::copyMakeBorder(m1, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+    reversed = false;
   } else if (m2.cols >= m1.cols && m2.rows >= m1.rows) {
-    img = m2;
-    tmpl = m1;
+    //img = m2.clone();
+    tmpl = m1.clone();
+    cv::copyMakeBorder(m2, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+    reversed = true;
   } else {
-    return 1e12;
+    throw std::runtime_error("Please use fixed ratio for your bounding boxes. This implementation can not handle all overlap situations.");
   }
+
   cv::matchTemplate(img, tmpl, buff, CV_TM_CCORR_NORMED);
   double max_val = 0.0, min_val = 0.0;
   cv::Point max_loc, min_loc;
   cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
 
-  //return max_val;
   cv::Rect tmpl_roi;
   tmpl_roi.x = max_loc.x;
   tmpl_roi.y = max_loc.y;
   tmpl_roi.width = std::min(tmpl.cols, img.cols - tmpl_roi.tl().x);
   tmpl_roi.height = std::min(tmpl.rows, img.rows - tmpl_roi.tl().y);
-  cv::absdiff(img(tmpl_roi).clone(), tmpl, buff);
 
-  /*
-  std::stringstream ss;
+  // The sizes of two images should be identical
+  // TODO: add why
+  // TODO: remove clone?
+  cv::Mat img_cropped = img(tmpl_roi).clone();
+  cv::Mat tmpl_cropped = tmpl(cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height)).clone();
 
-  ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_roi.bmp";
-  cv::imwrite(ss.str(), img(tmpl_roi));
+  cv::rectangle(img, tmpl_roi, cv::Scalar(0,0,0));
+  cv::rectangle(tmpl, cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height), cv::Scalar(0,0,0));
 
-  ss.str("");
-  ss << std::setw(5) << std::setfill('0') << "/tmp/"<< index << "_img.bmp";
-  cv::imwrite(ss.str(), img);
+  //cv::equalizeHist(tmpl(cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height)).clone(), tmpl);
+  //cv::absdiff(img(tmpl_roi).clone(), tmpl(cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height)).clone(), buff);
+  cv::absdiff(img_cropped, tmpl_cropped, buff);
+  //buff = reversed ? img - tmpl : tmpl - img;
 
-  ss.str("");
-  ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_tpl.bmp";
-  cv::imwrite(ss.str(), tmpl);
-  */
+  // Remove noise
+  cv::threshold(buff, buff, 10, 0, cv::THRESH_TOZERO);
+
+  if (debug_mode) {
+    std::stringstream ss;
+    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_0m1.bmp";
+    cv::imwrite(ss.str(), m1);
+
+    ss.str("");
+    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_1m2.bmp";
+    cv::imwrite(ss.str(), m2);
+
+    ss.str("");
+    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_2img.bmp";
+    cv::imwrite(ss.str(), img.clone());
+
+    ss.str("");
+    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_3tpl.bmp";
+    cv::imwrite(ss.str(), tmpl.clone());
+
+    ss.str("");
+    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_4buf.bmp";
+    cv::imwrite(ss.str(), buff.clone());
+  }
   return cv::mean(buff)[0];// / float(tmpl_roi.area());
+
   //return sqrt(min_val);//cv::sum(buff)[0];// / (float) m1.size().area();
 }
 
@@ -112,7 +146,7 @@ void SelfSimilarity::Update() {
       //cv::resize(sequence.at(t2), m2_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
       //const float s = CalcFramesSimilarity(m1_resized, m2_resized, buff);
       //const float s = CalcFramesSimilarity(m1, m2, buff);
-      const float s = CalcFramesSimilarity(sequence.at(0), sequence.at(t1), buff);
+      const float s = CalcFramesSimilarity(sequence.at(0), sequence.at(t1), buff, t1);
       sim_matrix.at<float>(t1) = s; // nx1 mat
       //sim_matrix.at<float>(t2, t1) = s;
     //}

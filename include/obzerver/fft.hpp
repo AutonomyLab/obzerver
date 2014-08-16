@@ -19,7 +19,7 @@ protected:
 
 public:
   Periodicity(const std::size_t hist_len, const float fps);
-  void Update(const cv::Mat& vec);
+  void Update(const cv::Mat& vec, const bool verbose);
   float GetDominantFrequency(const std::size_t start_index = 0) const;
   bool IsPeriodic() const ;
   const std::vector<float>& GetSpectrum() const {return fft_power;}

@@ -19,24 +19,32 @@ Periodicity::Periodicity(const std::size_t hist_len, const float fps)
 
 }
 
-void Periodicity::Update(const cv::Mat &vec) {
-  CalcVecDFT(vec, fft_power, hann_window, 0, false);
+void Periodicity::Update(const cv::Mat &vec, const bool verbose = false) {
+  CalcVecDFT(vec, fft_power, hann_window, 0, verbose);
 }
 
 
 float Periodicity::GetDominantFrequency(const std::size_t start_index) const {
   if (!fft_power.size()) return -1.0;
   CV_Assert(start_index < fft_power.size());
+
+  std::vector<float> fft_power_copy(fft_power);
+
+  // Lazy way to remove low frequency components
+  for (std::size_t i = 0; i < start_index; i++) {
+    fft_power_copy[i] = 0.0;
+  }
+
   cv::Scalar mean, stddev;
-  cv::meanStdDev(fft_power, mean, stddev);
+  cv::meanStdDev(fft_power_copy, mean, stddev);
   const double dom_freq_cst = mean[0] + 3.0 * stddev[0];
 
-  float max_power = fft_power.at(0);
+  float max_power = fft_power_copy.at(0);
   std::size_t max_power_freq_index = 0;
 
-  for (std::size_t i = 1; i < fft_power.size(); i++) {
-    if (fft_power.at(i) > max_power) {
-      max_power = fft_power.at(i);
+  for (std::size_t i = 1; i < fft_power_copy.size(); i++) {
+    if (fft_power_copy.at(i) > max_power) {
+      max_power = fft_power_copy.at(i);
       max_power_freq_index = i;
     }
   }
