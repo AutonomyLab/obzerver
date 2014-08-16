@@ -46,21 +46,28 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
   //cv::multiply(buff, buff, buff);
   cv::Mat img, tmpl;
   bool reversed = false;
+  int orig_width, orig_height;
   if (m1.cols >= m2.cols && m1.rows >= m2.rows) {
     //img = m1.clone();
     tmpl = m2.clone();
     cv::copyMakeBorder(m1, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
     reversed = false;
+    orig_width = m1.cols;
+    orig_height = m1.rows;
   } else if (m2.cols >= m1.cols && m2.rows >= m1.rows) {
     //img = m2.clone();
     tmpl = m1.clone();
     cv::copyMakeBorder(m2, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+    orig_width = m2.cols;
+    orig_height = m2.rows;
     reversed = true;
   } else {
-    throw std::runtime_error("Please use fixed ratio for your bounding boxes. This implementation can not handle all overlap situations.");
+    return 1e12;
+    //throw std::runtime_error("Please use fixed ratio for your bounding boxes. This implementation can not handle all overlap situations.");
   }
 
   cv::matchTemplate(img, tmpl, buff, CV_TM_CCORR_NORMED);
+  //cv::matchTemplate(img, tmpl, buff, CV_TM_SQDIFF_NORMED);
   double max_val = 0.0, min_val = 0.0;
   cv::Point max_loc, min_loc;
   cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
@@ -68,8 +75,8 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
   cv::Rect tmpl_roi;
   tmpl_roi.x = max_loc.x;
   tmpl_roi.y = max_loc.y;
-  tmpl_roi.width = std::min(tmpl.cols, img.cols - tmpl_roi.tl().x);
-  tmpl_roi.height = std::min(tmpl.rows, img.rows - tmpl_roi.tl().y);
+  tmpl_roi.width = std::min(tmpl.cols, orig_width - (tmpl_roi.tl().x - tmpl.cols/2));
+  tmpl_roi.height = std::min(tmpl.rows, orig_height - (tmpl_roi.tl().y - tmpl.rows/2));
 
   // The sizes of two images should be identical
   // TODO: add why

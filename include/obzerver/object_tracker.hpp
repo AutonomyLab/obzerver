@@ -71,6 +71,7 @@ protected:
 
   StepBenchmarker& ticker;
 
+  cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const float alpha, const int max_width, const int boundary_width, const int boundary_height);
   cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const std::vector<cv::Point2f> &weights, const float alpha, const float max_width, const int boundary_width, const int boundary_height);
 public:
   ObjectTracker(const std::size_t num_particles,
@@ -92,3 +93,4 @@ public:
 };
 
 #endif
+
