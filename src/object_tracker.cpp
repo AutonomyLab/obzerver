@@ -168,12 +168,13 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
 
   unsigned short int k = 0;
   double err = 1e12;
+  std::vector<cv::Mat> vec_cov;
   for (k = 1; k < 5 && err > clustering_err_threshold; k++) {
     cv::EM em_estimator(k, cv::EM::COV_MAT_DIAGONAL, cv::TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 100, 0.01));
     em_estimator.train(particles_pose, cv::noArray(), labels, cv::noArray());
 
     centers = em_estimator.get<cv::Mat>("means");
-    std::vector<cv::Mat> vec_cov = em_estimator.get<std::vector<cv::Mat> >("covs");
+    vec_cov = em_estimator.get<std::vector<cv::Mat> >("covs");
     LOG(INFO) << "EM k: " << k;
     err = 0.0;
     for (std::size_t c = 0; c < vec_cov.size(); c++) {
@@ -205,7 +206,12 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
       LOG(INFO) << "Waiting for first dense cluser ...";
     } else {
       // All pts are condensed enough to form a bounding box
-      tobject.Update(img_stab, GenerateBoundingBox(pts, 10.0, 100.0, img_diff.cols, img_diff.rows), true);
+      LOG(INFO) << "Coovariance: " << vec_cov[0];
+      tobject.Update(img_stab, GenerateBoundingBox(pts,
+                                                   cv::Point2f(centers.at<double>(0,0), centers.at<double>(0, 1)),
+                                                   vec_cov[0].at<double>(0,0),
+                                                   vec_cov[0].at<double>(1,1),
+                                                   7.5, 100.0, img_diff.cols, img_diff.rows), true);
       status = TRACKING_STATUS_TRACKING;
       tracking_counter = 15;
     }
@@ -228,13 +234,14 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
         const cv::Point2f pt(centers.at<double>(i, 0), centers.at<double>(i, 1));
         double dist = pow(pt.x - rectCenter(tracked_bb).x, 2);
         dist += pow(pt.y - rectCenter(tracked_bb).y, 2);
-        LOG(INFO) << "Distance frome " << rectCenter(tracked_bb) << " to " << pt << " is " << sqrt(dist) << std::endl;
+        dist = sqrt(dist);
+        LOG(INFO) << "Distance frome " << rectCenter(tracked_bb) << " to " << pt << " is " << dist << std::endl;
         if (dist < min_dist) {
           min_dist = dist;
           min_dist_cluster = i;
         }
       }
-      LOG(INFO) << "Chose cluster #" << min_dist_cluster << std::endl;
+      LOG(INFO) << "Chose cluster #" << min_dist_cluster << " with d = " << min_dist;
       if (num_clusters == 0) {
         LOG(INFO) << "No cluster at all. Skipping.";
         bb = tracked_bb;
@@ -248,7 +255,12 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
             }
         }
         LOG(INFO) << "Subset size: " << cluster.size() << std::endl;
-        bb = GenerateBoundingBox(cluster, 10.0, 100, img_diff.cols, img_diff.rows);
+        LOG(INFO) << "Coovariance: " << vec_cov[min_dist_cluster];
+        bb = GenerateBoundingBox(cluster,
+                                 cv::Point2f(centers.at<double>(min_dist_cluster,0), centers.at<double>(min_dist_cluster, 1)),
+                                 vec_cov[min_dist_cluster].at<double>(0,0),
+                                 vec_cov[min_dist_cluster].at<double>(1,1),
+                                 7.5, 100, img_diff.cols, img_diff.rows);
         tracking_counter = 15;
       } else {
         LOG(INFO) << "The closest cluster is far from current object being tracked, skipping";
@@ -256,10 +268,10 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
         tracking_counter--;
       }
       LOG(INFO) << " BB: " << bb;
-      tracked_bb.x = 0.5 * (tracked_bb.x + bb.x);
-      tracked_bb.y = 0.5 * (tracked_bb.y + bb.y);
-      tracked_bb.width = 0.5 * (tracked_bb.width + bb.width);
-      tracked_bb.height = 0.5 * (tracked_bb.height + bb.height);
+      tracked_bb.x = bb.x;//0.0 * tracked_bb.x + 1.0 * bb.x;
+      tracked_bb.y = bb.y;//0.0 * tracked_bb.y + 1.0 * bb.y;
+      tracked_bb.width = tracked_bb.width;//0.0 * tracked_bb.width + 1.0 * bb.width;
+      tracked_bb.height = tracked_bb.height;//0.0 * tracked_bb.height + 1.0 * bb.height;
       tobject.Update(img_stab, tracked_bb);
     }
   }
@@ -270,13 +282,29 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
 }
 
 cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f> &pts,
+                                            const cv::Point2f center,
+                                            const float cov_x,
+                                            const float cov_y,
                                             const float alpha,
                                             const int max_width,
                                             const int boundary_width,
                                             const int boundary_height)
 {
+  // 3 * std_dev thresshold for outliers
+  double cov_xt = 9.0 * cov_x;
+  double cov_yt = 9.0 * cov_y;
+  std::vector<cv::Point2f> pts_inliers;
+  for (unsigned int i = 0; i < pts.size(); i++) {
+    if (pow(pts[i].x - center.x, 2.0) < cov_xt &&
+        pow(pts[i].y - center.y, 2.0) < cov_yt)
+    {
+      pts_inliers.push_back(pts[i]);
+    }
+  }
+
+  LOG(INFO) << "Pruning: " << pts_inliers.size() << " / " << pts.size();
   cv::Scalar _c, _s;
-  cv::meanStdDev(pts, _c, _s);
+  cv::meanStdDev(pts_inliers, _c, _s);
   const double _w = std::min(_s[0] * alpha, (double) max_width);
   const double _h = std::min(_s[1] * alpha, (double) max_width);
 
@@ -288,7 +316,7 @@ cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f> &pts,
         int(_h)
       );
 
-  LOG(INFO) << _c[0] << " " << _c[1] << " " << _s[0] <<  " " << _s[1];
+  LOG(INFO) << "Generate BB: " << _c[0] << " " << _c[1] << " " << _s[0] <<  " " << _s[1];
   return ClampRect(bb, boundary_width, boundary_height);
 }
 
@@ -341,7 +369,6 @@ void ObjectTracker::DrawParticles(cv::Mat &img)
 
   for (int i = 0; i < num_clusters; i++) {
     const cv::Point2f pt(centers.at<double>(i,0), centers.at<double>(i,1));
-    LOG(INFO) << "======================================================" << pt;
     cv::circle(img, pt, 10, cv::Scalar(255, 255, 255));
     //cv::circle(img, centers.at<cv::Point2f>(i), 10, cv::Scalar(255, 255, 255));
   }

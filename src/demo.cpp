@@ -89,7 +89,6 @@ int main(int argc, char* argv[]) {
   trackbar_data_t trackbar_data(&capture, &frame_counter);
   ObjectTracker object_tracker(param_num_particles, param_hist_len, fps);
 
-
   LOG(INFO) << "Video Source: " << video_src;
 
   try {

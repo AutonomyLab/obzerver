@@ -70,6 +70,21 @@ inline cv::Rect_<T> ClampRect(const cv::Rect_<T>& rect, const T& width, const T&
   return ClampRect(rect, cv::Rect_<T>(0, 0, width, height));
 }
 
+//// This is in image coordinate system
+//template<class T>
+//inline cv::Rect_<T> RectIntersect(const cv::Rect_<T>& r1, const cv::Rect_<T>& r2) {
+//  cv::Rect_<T> ri;
+//  ri.x = std::max(r1.x, r2.x);
+//  r1.y = std::max(r1.y, r2.y);
+
+//  T x2 = std::min(r1.x + r1.width, r2.x + r2.width);
+//  T y2 = std::min(r1.y + r1.height, r2.y + r2.height);
+
+//  ri.width = std::max(static_cast<T>(0), x2 - ri.x);
+//  ri.height = std::max(static_cast<T>(0), y2 - ri.y);
+//  return ri;
+//}
+
 // TODO: Why const does not work?
 template<typename T> inline
 T quick_median(std::vector<T> &v)

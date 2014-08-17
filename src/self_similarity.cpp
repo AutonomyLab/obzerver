@@ -4,9 +4,6 @@
 
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
-#include "opencv2/video/tracking.hpp"
-//#include "opencv2/features2d/features2d.hpp"
-
 #include "glog/logging.h"
 
 #include "obzerver/utility.hpp"
@@ -47,24 +44,24 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
   cv::Mat img, tmpl;
   bool reversed = false;
   int orig_width, orig_height;
-  if (m1.cols >= m2.cols && m1.rows >= m2.rows) {
+  if ( (m1.cols * m1.rows) >= (m2.cols * m2.rows)) {
     //img = m1.clone();
     tmpl = m2.clone();
     cv::copyMakeBorder(m1, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
     reversed = false;
     orig_width = m1.cols;
     orig_height = m1.rows;
-  } else if (m2.cols >= m1.cols && m2.rows >= m1.rows) {
+  } else {//if (m2.cols >= m1.cols && m2.rows >= m1.rows) {
     //img = m2.clone();
     tmpl = m1.clone();
     cv::copyMakeBorder(m2, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
     orig_width = m2.cols;
     orig_height = m2.rows;
     reversed = true;
-  } else {
+  } /*else {
     return 1e12;
     //throw std::runtime_error("Please use fixed ratio for your bounding boxes. This implementation can not handle all overlap situations.");
-  }
+  }*/
 
   cv::matchTemplate(img, tmpl, buff, CV_TM_CCORR_NORMED);
   //cv::matchTemplate(img, tmpl, buff, CV_TM_SQDIFF_NORMED);
@@ -72,28 +69,48 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
   cv::Point max_loc, min_loc;
   cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
 
-  cv::Rect tmpl_roi;
-  tmpl_roi.x = max_loc.x;
-  tmpl_roi.y = max_loc.y;
-  tmpl_roi.width = std::min(tmpl.cols, orig_width - (tmpl_roi.tl().x - tmpl.cols/2));
-  tmpl_roi.height = std::min(tmpl.rows, orig_height - (tmpl_roi.tl().y - tmpl.rows/2));
+  // img coordinate system is the global coordinate system here
+  // from 0,0 -> img.w + tmpl.w, img.h + tmpl.h
 
+  // overlap in global coordinate frame
+  // & is intersection of two rects
+  cv::Rect tmpl_overlap =
+      cv::Rect(tmpl.cols/2, tmpl.rows/2, orig_width, orig_height) & // original image in global coordinates
+      cv::Rect(max_loc, cv::Size(tmpl.cols, tmpl.rows)); // matched tmpl in global coordinates
+
+  cv::Rect tmpl_roi(
+        tmpl_overlap.x - max_loc.x,
+        tmpl_overlap.y - max_loc.y,
+        tmpl_overlap.width,
+        tmpl_overlap.height
+        );
+
+//  LOG(INFO) << "Orig Size: " << orig_width << " " << orig_height;
+//  LOG(INFO) << "Big image Size: " << img.size();
+//  LOG(INFO) << "Template Size: " << tmpl.size();
+//  LOG(INFO) << "Max Loc: " << max_loc;
+//  LOG(INFO) << "Overlap Size: " << tmpl_overlap;
+//  LOG(INFO) << "TMPL ROI size: " << tmpl_roi;
   // The sizes of two images should be identical
   // TODO: add why
   // TODO: remove clone?
-  cv::Mat img_cropped = img(tmpl_roi).clone();
-  cv::Mat tmpl_cropped = tmpl(cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height)).clone();
+  cv::Mat img_cropped = img(tmpl_overlap).clone(); // This is ok (both in global coordinates)
 
-  cv::rectangle(img, tmpl_roi, cv::Scalar(0,0,0));
-  cv::rectangle(tmpl, cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height), cv::Scalar(0,0,0));
+  cv::Mat tmpl_cropped = tmpl(tmpl_roi).clone();
+
+  cv::rectangle(img, tmpl_overlap, cv::Scalar(0,0,0));
+  cv::rectangle(tmpl, tmpl_roi, cv::Scalar(0,0,0));
 
   //cv::equalizeHist(tmpl(cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height)).clone(), tmpl);
   //cv::absdiff(img(tmpl_roi).clone(), tmpl(cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height)).clone(), buff);
-  cv::absdiff(img_cropped, tmpl_cropped, buff);
-  //buff = reversed ? img - tmpl : tmpl - img;
+  CV_Assert(img_cropped.size() == tmpl_cropped.size());
+
+  //cv::absdiff(img_cropped, tmpl_cropped, buff);
+  //cv::matchTemplate(img_cropped, tmpl_cropped, buff, CV_TM_CCORR);
+  buff = reversed ? img_cropped - tmpl_cropped : tmpl_cropped - img_cropped;
 
   // Remove noise
-  cv::threshold(buff, buff, 10, 0, cv::THRESH_TOZERO);
+  //cv::threshold(buff, buff, 100, 0, cv::THRESH_TOZERO);
 
   if (debug_mode) {
     std::stringstream ss;
