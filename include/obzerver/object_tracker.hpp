@@ -79,7 +79,7 @@ public:
                 const float fps,
                 const unsigned short int crop = 30,
                 const double prob_random_move = 0.2,
-                const double mm_displacement_noise_stddev = 5);
+                const double mm_displacement_noise_stddev = 10);
   ~ObjectTracker();
 
   bool Update(const cv::Mat& img_stab, const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform);

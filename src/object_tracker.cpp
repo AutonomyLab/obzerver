@@ -211,7 +211,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
                                                    cv::Point2f(centers.at<double>(0,0), centers.at<double>(0, 1)),
                                                    vec_cov[0].at<double>(0,0),
                                                    vec_cov[0].at<double>(1,1),
-                                                   7.5, 100.0, img_diff.cols, img_diff.rows), true);
+                                                   5.0, 100.0, img_diff.cols, img_diff.rows), true);
       status = TRACKING_STATUS_TRACKING;
       tracking_counter = 15;
     }
@@ -260,7 +260,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
                                  cv::Point2f(centers.at<double>(min_dist_cluster,0), centers.at<double>(min_dist_cluster, 1)),
                                  vec_cov[min_dist_cluster].at<double>(0,0),
                                  vec_cov[min_dist_cluster].at<double>(1,1),
-                                 7.5, 100, img_diff.cols, img_diff.rows);
+                                 5.0, 100, img_diff.cols, img_diff.rows);
         tracking_counter = 15;
       } else {
         LOG(INFO) << "The closest cluster is far from current object being tracked, skipping";
@@ -268,10 +268,12 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
         tracking_counter--;
       }
       LOG(INFO) << " BB: " << bb;
-      tracked_bb.x = bb.x;//0.0 * tracked_bb.x + 1.0 * bb.x;
-      tracked_bb.y = bb.y;//0.0 * tracked_bb.y + 1.0 * bb.y;
-      tracked_bb.width = tracked_bb.width;//0.0 * tracked_bb.width + 1.0 * bb.width;
-      tracked_bb.height = tracked_bb.height;//0.0 * tracked_bb.height + 1.0 * bb.height;
+      const double param_lpf = 0.5;
+      tracked_bb.x = param_lpf * tracked_bb.x + (1.0 - param_lpf) * bb.x;
+      tracked_bb.y = param_lpf * tracked_bb.y + (1.0 - param_lpf) * bb.y;
+      tracked_bb.width = param_lpf * tracked_bb.width + (1.0 - param_lpf) * bb.width;
+      tracked_bb.height = param_lpf * tracked_bb.height + (1.0 - param_lpf) * bb.height;
+      tracked_bb = ClampRect(tracked_bb, img_stab.cols, img_stab.rows);
       tobject.Update(img_stab, tracked_bb);
     }
   }

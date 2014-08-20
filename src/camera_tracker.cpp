@@ -28,7 +28,7 @@ CameraTracker::CameraTracker(const std::size_t hist_len,
   ;
 }
 
-bool CameraTracker::Update(const cv::Mat &frame_gray) {
+bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) {
   frame_gray_hist.push_front(frame_gray.clone());
   LOG(INFO) << "Size: " << frame_gray_hist.size();
   ticker.tick("  [CT] Frame Copy");
@@ -98,12 +98,22 @@ bool CameraTracker::Update(const cv::Mat &frame_gray) {
           );
 
     cv::warpPerspective(frame_gray_hist.latest(),
-                        cache_frame_stablized,
+                        cache_frame_stablized_gray,
                         est_homography_transform,
                         frame_gray_hist.latest().size(),
                         cv::INTER_CUBIC,
                         cv::BORDER_TRANSPARENT
                         );
+
+    if (frame_rgb.cols > 0 && frame_rgb.rows > 0) {
+      cv::warpPerspective(frame_rgb,
+                          cache_frame_stablized_rgb,
+                          est_homography_transform,
+                          frame_gray_hist.latest().size(),
+                          cv::INTER_CUBIC,
+                          cv::BORDER_TRANSPARENT
+                          );
+    }
 
     camera_transform_hist.push_front(est_homography_transform.clone());
     ticker.tick("  [CT] Find Homography");
@@ -127,7 +137,7 @@ void CameraTracker::UpdateDiff() {
   cv::Scalar thres_stddev;
 
   cv::Mat diff;
-  cv::absdiff(cache_frame_stablized, frame_gray_hist.prev(), diff);
+  cv::absdiff(cache_frame_stablized_gray, frame_gray_hist.prev(), diff);
   cv::meanStdDev(diff, thres_mean, thres_stddev);
   cv::threshold(diff, diff, thres_mean[0] + thres_stddev[0], 0, cv::THRESH_TOZERO);
 
@@ -137,7 +147,7 @@ void CameraTracker::UpdateDiff() {
 // TODO: Move all params
 void CameraTracker::UpdateSOF() {
   tracked_features_curr_stab.clear();
-  cache_sof_image = cv::Mat::zeros(cache_frame_stablized.rows, cache_frame_stablized.cols, CV_32FC1);
+  cache_sof_image = cv::Mat::zeros(cache_frame_stablized_gray.rows, cache_frame_stablized_gray.cols, CV_32FC1);
   cv::perspectiveTransform(tracked_features_curr, tracked_features_curr_stab, camera_transform_hist.latest());
   for (unsigned int i = 0; i < tracked_features_curr_stab.size(); i++) {
     if (!est_homography_outliers.data || 1 == est_homography_outliers.at<uchar>(i, 0)) continue; // Skip the inliers
@@ -168,6 +178,6 @@ void CameraTracker::FailureUpdate() {
   camera_transform_hist.push_front(cv::Mat::eye(3, 3, CV_64FC1)); // TODO: Check the type
   cache_frame_diff = cv::Mat::zeros(frame_gray_hist.latest().size(), CV_8UC1);
   cache_sof_image = cv::Mat::zeros(frame_gray_hist.latest().size(), CV_8UC1);
-  cache_frame_stablized = frame_gray_hist.latest().clone();
+  cache_frame_stablized_gray = frame_gray_hist.latest().clone();
   UpdateAccumulatedTransforms();
 }

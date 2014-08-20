@@ -1,23 +1,24 @@
-
 #include <iomanip>
 #include <stdexcept>
 
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include "opencv2/video/tracking.hpp"
+#include "opencv3-backport/shift.hpp"
+
 #include "glog/logging.h"
 
 #include "obzerver/utility.hpp"
 #include "obzerver/self_similarity.hpp"
-
-
-
 SelfSimilarity::SelfSimilarity(const std::size_t hist_len, const bool debug_mode):
   hist_len(hist_len),
   debug_mode(debug_mode),
   sequence(hist_len),
   ticker(StepBenchmarker::GetInstance())
 {
-  ;
+  sim_matrix = cv::Mat::zeros(hist_len, hist_len, CV_32F);
+  background_substractor = new cv::BackgroundSubtractorMOG(hist_len, 5, 0.5);
+  feature_detector = new cv::FastFeatureDetector(30, true);
 }
 
 std::size_t SelfSimilarity::GetHistoryLen() const {
@@ -63,12 +64,14 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
     //throw std::runtime_error("Please use fixed ratio for your bounding boxes. This implementation can not handle all overlap situations.");
   }*/
 
-  cv::matchTemplate(img, tmpl, buff, CV_TM_CCORR_NORMED);
+  //cv::matchTemplate(img, tmpl, buff, CV_TM_CCORR_NORMED);
+  cv::matchTemplate(img, tmpl, buff, CV_TM_SQDIFF);
   //cv::matchTemplate(img, tmpl, buff, CV_TM_SQDIFF_NORMED);
   double max_val = 0.0, min_val = 0.0;
   cv::Point max_loc, min_loc;
   cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
 
+  return min_val;
   // img coordinate system is the global coordinate system here
   // from 0,0 -> img.w + tmpl.w, img.h + tmpl.h
 
@@ -76,11 +79,11 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
   // & is intersection of two rects
   cv::Rect tmpl_overlap =
       cv::Rect(tmpl.cols/2, tmpl.rows/2, orig_width, orig_height) & // original image in global coordinates
-      cv::Rect(max_loc, cv::Size(tmpl.cols, tmpl.rows)); // matched tmpl in global coordinates
+      cv::Rect(min_loc, cv::Size(tmpl.cols, tmpl.rows)); // matched tmpl in global coordinates
 
   cv::Rect tmpl_roi(
-        tmpl_overlap.x - max_loc.x,
-        tmpl_overlap.y - max_loc.y,
+        tmpl_overlap.x - min_loc.x,
+        tmpl_overlap.y - min_loc.y,
         tmpl_overlap.width,
         tmpl_overlap.height
         );
@@ -101,16 +104,31 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
   cv::rectangle(img, tmpl_overlap, cv::Scalar(0,0,0));
   cv::rectangle(tmpl, tmpl_roi, cv::Scalar(0,0,0));
 
+//  std::vector<cv::KeyPoint> k1;
+//  std::vector<cv::Point2f> v1, v1_nxt;
+//  std::vector<int> v1_status;
+//  feature_detector->detect(img_cropped, k1);
+//  //feature_detector->detect(tmpl_cropped, k2);
+//  cv::KeyPoint::convert(k1, v1);
+//  //cv::KeyPoint::convert(k2, v2);
+//  cv::calcOpticalFlowPyrLK(img, tmpl, v1, v1_nxt, v1_status, cv::noArray(), cv::Size(5,5), 3,
+//                           cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 1000, 0.01));
+
+
+//  drawFeaturePointsTrajectory(img, v1, v1_nxt, 2, cv::Scalar(0,0,0), cv::Scalar(0,0,0), cv::Scalar(0,0,0));
   //cv::equalizeHist(tmpl(cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height)).clone(), tmpl);
   //cv::absdiff(img(tmpl_roi).clone(), tmpl(cv::Rect(0,0,tmpl_roi.width, tmpl_roi.height)).clone(), buff);
   CV_Assert(img_cropped.size() == tmpl_cropped.size());
 
   //cv::absdiff(img_cropped, tmpl_cropped, buff);
   //cv::matchTemplate(img_cropped, tmpl_cropped, buff, CV_TM_CCORR);
-  buff = reversed ? img_cropped - tmpl_cropped : tmpl_cropped - img_cropped;
+  //buff = reversed ? img_cropped - tmpl_cropped : tmpl_cropped - img_cropped;
 
-  // Remove noise
-  //cv::threshold(buff, buff, 100, 0, cv::THRESH_TOZERO);
+  cv::absdiff(img_cropped, tmpl_cropped, buff);
+  //cv::Scalar _m, _s;
+  //cv::meanStdDev(buff, _m, _s);
+  // Remove noise  
+  //cv::threshold(buff, buff, _m[0] + _s[0], 0, cv::THRESH_TOZERO);
 
   if (debug_mode) {
     std::stringstream ss;
@@ -132,12 +150,79 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1, const cv::Mat& m2,
     ss.str("");
     ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_4buf.bmp";
     cv::imwrite(ss.str(), buff.clone());
+
+    ss.str("");
+    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_5m2_cropped.bmp";
+    cv::imwrite(ss.str(), m2);
   }
-  return cv::mean(buff)[0];// / float(tmpl_roi.area());
+
+  //return cv::norm(img_cropped, tmpl_cropped, cv::NORM_HAMMING2);
+  //return sqrt(min_val);
+
+  return cv::sum(buff)[0];// / float(tmpl_roi.area());
 
   //return sqrt(min_val);//cv::sum(buff)[0];// / (float) m1.size().area();
 }
 
+float SelfSimilarity::CalcFramesSimilarity2(const cv::Mat& m1, const cv::Mat& m2, cv::Mat& buff, const
+                                            unsigned int index)
+{
+  CV_Assert(m1.size() == m2.size());
+  cv::Mat _m1, _m2;
+
+//  cv::Mat fg_mask;
+//  background_substractor->operator ()(m2, fg_mask);
+
+//  cv::Mat mask;
+//  background_substractor->operator ()(m2, mask);
+//  cv::Mat affine = cv::estimateRigidTransform(m1, m2, true);
+
+  //cv::matchTemplate(m1.clone(), m2.clone(), buff, CV_TM_CCOEFF_NORMED);
+  //cv::Mat buff2;
+//  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(30,30));
+
+//  cv::morphologyEx(fg_mask, fg_mask, cv::MORPH_CLOSE, element);
+  buff.convertTo(buff, CV_16S);
+  cv::subtract(m2, m1, buff);
+  buff = cv::abs(buff);
+ // dumpCvMatInfo(buff2);
+
+  if (debug_mode) {
+//    cv::rectangle(_m1, r1, cv::Scalar(0, 0, 0));
+//    cv::rectangle(_m2, r2, cv::Scalar(0, 0, 0));
+    std::stringstream ss;
+//    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_0bg.bmp";
+//    cv::imwrite(ss.str(), mask);
+    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_0m1.bmp";
+    cv::imwrite(ss.str(), m1.clone());
+
+    ss.str("");
+    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_1m2.bmp";
+    cv::imwrite(ss.str(), m2.clone());
+
+    ss.str("");
+    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_2buf.bmp";
+    cv::imwrite(ss.str(), buff);
+
+//    ss.str("");
+//    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_3mask.bmp";
+//    cv::imwrite(ss.str(), fg_mask);
+  }
+//  LOG(INFO) << "Affine: " << affine;
+  return cv::sum(buff)[0]; // TODO: FIXME
+}
+
+float SelfSimilarity::CalcFramesSimilarity3(const cv::Mat& m1, const cv::Mat& m2, cv::Mat& buff, const
+                                            unsigned int index) const
+{
+//  cv::Mat flow, flowMag;
+//  cv::calcOpticalFlowFarneback(m1, m2, flow, 0.5, 3, 3, 3, 9, 1.9, 0);
+//  std::vector<cv::Mat> flowChannels;
+//  split(flow, flowChannels);
+//  cv::magnitude(flowChannels[0], flowChannels[1], flowMag);
+
+  return 0.0;
+}
 
 void SelfSimilarity::Update(const cv::Mat& m, const bool reset) {
   if (reset) Reset();
@@ -154,29 +239,49 @@ void SelfSimilarity::Update() {
     heights[i] = sequence.at(i).size().height;
   }
 
-  const std::size_t w = quick_median(widths);
-  const std::size_t h = quick_median(heights);
+  const std::size_t w = quick_median(widths) * 0.5;
+  const std::size_t h = quick_median(heights) * 0.5;
 
   LOG(INFO) << "Median Size: " << w << ", " << h << " @ " << sequence.size();
 
-  //sim_matrix = cv::Mat::zeros(sequence.size(), sequence.size(), CV_32FC1);
-  sim_matrix = cv::Mat::zeros(sequence.size(), 1, CV_32F);
-  //cv::Mat m1_resized = cv::Mat::zeros(h, w, CV_8UC1);
-  //cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
+  //cv::Ptr<cv::BackgroundSubtractor> background_substractor = new cv::BackgroundSubtractorMOG2(hist_len, 10);
+
+  cv::Mat m1_resized = cv::Mat::zeros(h, w, CV_8UC1);
+  cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
   cv::Mat buff = cv::Mat::zeros(h, w, CV_8UC1);
+
+  cv3::shift(sim_matrix, sim_matrix, cv::Point2f(1.0,1.0));
+
+  cv::resize(sequence.at(0), m1_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
   for (std::size_t t1 = 0; t1 < sequence.size(); t1++) {
-    //for (std::size_t t2 = 0; t2 < sequence.size(); t2++) {
-      //cv::resize(sequence.at(t1), m1_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
-      //cv::resize(sequence.at(t2), m2_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
-      //const float s = CalcFramesSimilarity(m1_resized, m2_resized, buff);
-      //const float s = CalcFramesSimilarity(m1, m2, buff);
-      const float s = CalcFramesSimilarity(sequence.at(0), sequence.at(t1), buff, t1);
-      sim_matrix.at<float>(t1) = s; // nx1 mat
-      //sim_matrix.at<float>(t2, t1) = s;
-    //}
+    cv::resize(sequence.at(t1), m2_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
+    //const float s = CalcFramesSimilarity(sequence.at(0), sequence.at(t1), buff, t1);
+    const float s = CalcFramesSimilarity(m1_resized, m2_resized, buff, t1);
+    sim_matrix.at<float>(0, t1) = s;
+    sim_matrix.at<float>(t1, 0) = s;
   }
 
+//  LOG(INFO) << sim_matrix;
+//  std::vector<cv::Point2f> corners;
+//  cv::goodFeaturesToTrack(m1_resized, corners, 10, 0.05, 2);
+//  drawFeaturePoints(m1_resized, corners, cv::Scalar(0,0), 2);
+//  LOG(INFO) << "Corners: " << corners.size();
+//  for (std::size_t t1 = 0; t1 < sequence.size(); t1++) {
+    //for (std::size_t t2 = 0; t2 < sequence.size(); t2++) {
+
+      //const float s = CalcFramesSimilarity(m1_resized, m2_resized, buff);
+      //const float s = CalcFramesSimilarity(m1, m2, buff);
+
+//      const float s = CalcFramesSimilarity2(m1_resized, m2_resized, buff, t1);
+
+      //sim_matrix.at<float>(t2, t1) = s;
+    //}
+//  }
+
   if (debug_mode) {
+//    cv::imwrite("/tmp/00000000.bmp", fg_mask);
+//    background_substractor->getBackgroundImage(bg_img);
+//    cv::imwrite("/tmp/00000001.bmp", bg_img);
     LOG(INFO) << sim_matrix.col(0).t();
     WriteToDisk("./data");
   }
@@ -186,12 +291,30 @@ void SelfSimilarity::Update() {
 //  }
 }
 
+void SelfSimilarity::Update2() {
+  widths.resize(sequence.size());
+  heights.resize(sequence.size());
+  std::size_t i = 0;
+  for (mseq_t::iterator it = sequence.begin(); it != sequence.end(); it++, i++) {
+    widths[i] = sequence.at(i).size().width;
+    heights[i] = sequence.at(i).size().height;
+  }
 
+  const std::size_t w = quick_median(widths);
+  const std::size_t h = quick_median(heights);
+
+  LOG(INFO) << "Median Size: " << w << ", " << h << " @ " << sequence.size();
+
+  cv::Mat m1_resized = cv::Mat::zeros(h, w, CV_8UC1);
+  cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
+  cv::Mat buff = cv::Mat::zeros(h, w, CV_8UC1);
+}
 const cv::Mat& SelfSimilarity::GetSimMatrix() const {
   return sim_matrix;
 }
 
-const cv::Mat SelfSimilarity::GetSimMatrixRendered() {
+cv::Mat SelfSimilarity::GetSimMatrixRendered() const {
+  cv::Mat render;
   double max_val = 0.0, min_val = 0.0;
   cv::minMaxLoc(sim_matrix, &min_val, &max_val);
   if (max_val > 0.0) {

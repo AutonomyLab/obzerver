@@ -2,8 +2,10 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "obzerver/fft.hpp"
 
+#include "obzerver/utility.hpp"
+
 Periodicity::Periodicity(const std::size_t hist_len, const float fps)
-  : hist_len(hist_len), fps(fps), hann_window(hist_len, 1, CV_32F)
+  : hist_len(hist_len), fps(fps), hann_window(1, hist_len, CV_32F), average_counter(0)
 {
   CV_Assert(cv::getOptimalDFTSize(hist_len) == (int) hist_len);
   const float df = fps / hist_len;
@@ -19,8 +21,22 @@ Periodicity::Periodicity(const std::size_t hist_len, const float fps)
 
 }
 
-void Periodicity::Update(const cv::Mat &vec, const bool verbose = false) {
-  CalcVecDFT(vec, fft_power, hann_window, 0, verbose);
+void Periodicity::Update(const cv::Mat &vec, const bool average, const bool verbose) {
+  if (average) {
+    std::vector<float> temp_power;
+    CalcVecDFT(vec, temp_power, hann_window, 0, verbose);
+    // You should run addup=false first to fill in fft_power;
+    assert(temp_power.size() == fft_power.size() && average_counter >= 1);
+    average_counter++;
+    for (std::size_t i = 0; i < fft_power.size(); i++)
+      // Moving (recursive) average
+      fft_power[i] =
+          ((float(average_counter - 1) / float(average_counter)) * fft_power[i]) +
+          ((1.0/average_counter) * temp_power[i]);
+  } else {
+    average_counter = 1;
+    CalcVecDFT(vec, fft_power, hann_window, 0, verbose);
+  }
 }
 
 
@@ -62,11 +78,11 @@ bool CalcVecDFT(const cv::Mat& vec_m,
                 const unsigned int remove_count,
                 const bool verbose)
 {
-    CV_Assert(vec_m.cols == 1 && win_m.cols == 1 && vec_m.size() == win_m.size());
+    CV_Assert(vec_m.rows == 1 && win_m.rows == 1 && vec_m.size() == win_m.size());
     std::vector<float> dft_out;
     fft_power.clear();
     if (verbose) {
-        LOG(INFO) << "    [FT] Original : " << vec_m.t();
+        LOG(INFO) << "    [FT] Original : " << vec_m;
     }
 
     cv::Scalar mean = cv::mean(vec_m);
@@ -74,18 +90,18 @@ bool CalcVecDFT(const cv::Mat& vec_m,
     cv::blur(vec_filtered, vec_filtered, cv::Size(1, 5));
 
     if (verbose) {
-        LOG(INFO) << "Removed Mean, Windowed & Smoothed: " << vec_filtered.t();
+        LOG(INFO) << "Removed Mean, Windowed & Smoothed: " << vec_filtered;
     }
 
     cv::dft(vec_filtered, dft_out, cv::DFT_SCALE);
 
     // TODO: Optimize
     //CCS to Magnitude
-    fft_power.resize(vec_filtered.rows / 2);
+    fft_power.resize(vec_filtered.cols / 2);
     fft_power[0] = fabs(dft_out[0]); // sometimes the DC term is negative
-    fft_power[vec_filtered.rows/2 - 1] = fabs(dft_out[vec_filtered.rows/2 - 1]);
+    fft_power[vec_filtered.cols/2 - 1] = fabs(dft_out[vec_filtered.cols/2 - 1]);
     unsigned int j = 1;
-    for (int i = 1; i < vec_filtered.rows - 2; i+=2) {
+    for (int i = 1; i < vec_filtered.cols - 2; i+=2) {
         fft_power[j++] = sqrt(dft_out[i] * dft_out[i] + dft_out[i+1] * dft_out[i+1]);
     }
 

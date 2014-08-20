@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 
 #include "glog/logging.h"
 #include "opencv2/features2d/features2d.hpp"
@@ -26,7 +27,7 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   cv::CommandLineParser cmd(argc, argv,
-              "{ v  | video | | specify video file }"
+              "{ v  | video | | specify video file}"
               "{ d  | display | false | Show visualization }"
               "{ c  | clear | false | Clear Terminal }"
               "{ p  | pause | false | Start in pause mode }"
@@ -66,6 +67,8 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  const bool use_webam  = (video_src.compare("cam") == 0);
+
   /* Logger */
 
   if (logfile.empty()) {
@@ -89,20 +92,25 @@ int main(int argc, char* argv[]) {
   trackbar_data_t trackbar_data(&capture, &frame_counter);
   ObjectTracker object_tracker(param_num_particles, param_hist_len, fps);
 
-  LOG(INFO) << "Video Source: " << video_src;
+ LOG(INFO) << "Video Source: " << video_src;
 
   try {
-    if (!capture.open(video_src)) {
+    if (use_webam && !capture.open(0)) {
+      LOG(ERROR) << "Can not webcam";
+      return 1;
+    } else if (!use_webam && !capture.open(video_src)) {
       LOG(ERROR) << "Can not open file: " << video_src;
       return 1;
     }
-    if (start_frame > 0 && start_frame < capture.get(CV_CAP_PROP_FRAME_COUNT)) {
+    if (!use_webam && start_frame > 0 && start_frame < capture.get(CV_CAP_PROP_FRAME_COUNT)) {
       frame_counter = start_frame;
       capture.set(CV_CAP_PROP_POS_FRAMES, frame_counter);
     }
-    LOG(INFO) << "Openning file: " << video_src << " frames: " << capture.get(CV_CAP_PROP_FRAME_COUNT);
+    if (!use_webam) {
+      LOG(INFO) << "Openning file: " << video_src << " frames: " << capture.get(CV_CAP_PROP_FRAME_COUNT);
+    }
     if (display) {
-      const long int num_frames = capture.get(CV_CAP_PROP_FRAME_COUNT);
+      const long int num_frames = use_webam ? 0 : capture.get(CV_CAP_PROP_FRAME_COUNT);
       cv::namedWindow("Original", cv::WINDOW_AUTOSIZE | cv::WINDOW_OPENGL);
       cv::namedWindow("DiffStab", cv::WINDOW_NORMAL | cv::WINDOW_OPENGL);
       cv::namedWindow("Debug", cv::WINDOW_NORMAL | cv::WINDOW_OPENGL);
@@ -121,17 +129,17 @@ int main(int argc, char* argv[]) {
         ticker.tick("Downsampling");
       }
       LOG(INFO) << "Frame: " << frame_counter << " [" << frame.cols << " x " << frame.rows << "]";
-      if (display && (frame_counter % 10 == 0)) cv::setTrackbarPos("Browse", "Original", frame_counter);
+      if (display && !use_webam && (frame_counter % 10 == 0)) cv::setTrackbarPos("Browse", "Original", frame_counter);
       cv::cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
       ticker.tick("Frame 2 Gray");
-      bool ct_success = camera_tracker.Update(frame_gray);
+      bool ct_success = camera_tracker.Update(frame_gray, frame);
       cv::Point2d center;
-      double _w=0.0, _h=0.0;
+      double _w=0.0, _h=0.0, _f=-1.0;
       if (!ct_success) {
         LOG(WARNING) << "Camera Tracker Failed";
         // TODO
       } else {
-        object_tracker.Update(camera_tracker.GetStablized(),
+        object_tracker.Update(camera_tracker.GetStablizedGray(), // TODO
                               camera_tracker.GetLatestDiff(),
                               camera_tracker.GetLatestSOF(),
                               camera_tracker.GetLatestCameraTransform());
@@ -139,10 +147,11 @@ int main(int argc, char* argv[]) {
 
         LOG(INFO) << "Tracking status: " << object_tracker.GetStatus();
         if (object_tracker.IsTracking()) {
+          _f = object_tracker.GetObject().GetPeriodicity().GetDominantFrequency(1); // TODO
           LOG(INFO) << "Object: "
                     << object_tracker.GetObjectBoundingBox()
                     << " Periodicity:"
-                    << object_tracker.GetObject().GetPeriodicity().GetDominantFrequency(1);
+                    << _f;
           //LOG(INFO) << "Spectrum: " << cv::Mat(object_tracker.GetObject().GetPeriodicity().GetSpectrum(), false);
         }
 
@@ -163,8 +172,13 @@ int main(int argc, char* argv[]) {
       }
 
       if (display) {
-        cv::Mat diff_frame = camera_tracker.GetLatestDiff();
-        cv::Mat debug_frame = camera_tracker.GetStablized();
+        //cv::Mat diff_frame = camera_tracker.GetLatestDiff();
+        cv::Mat diff_frame;
+        if (object_tracker.IsTracking()) {
+          diff_frame = object_tracker.GetObject().GetSelfSimilarity().GetSimMatrixRendered();
+          cv::imwrite("data/sim.bmp", diff_frame);
+        }
+        cv::Mat debug_frame = camera_tracker.GetStablizedGray();
         object_tracker.DrawParticles(debug_frame);
         if (camera_tracker.GetTrackedFeaturesCurr().size()) {          
           drawFeaturePointsTrajectory(frame,
@@ -176,6 +190,10 @@ int main(int argc, char* argv[]) {
         }
 
         cv::rectangle(diff_frame, cv::Rect(center.x - _w/2, center.y-_h/2, _w, _h), CV_RGB(255, 255, 255));
+
+        std::stringstream ss;
+        ss << std::setprecision(5) << "Periodicity: " << _f;
+        cv::putText(frame, ss.str(), cv::Point(40,40), 1, CV_FONT_HERSHEY_PLAIN, cv::Scalar(255, 0, 0));
         //cv::circle(diff_frame, center, 10, CV_RGB(255, 255, 255));
         if (frame.data) cv::imshow("Original", frame);
         if (diff_frame.data) cv::imshow("DiffStab", diff_frame);

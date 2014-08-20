@@ -111,6 +111,11 @@ void drawFeaturePointsTrajectory(cv::Mat& frame,
                                  int rad,
                                  const cv::Scalar& color_prev, const cv::Scalar& color_cur, const cv::Scalar& color_line);
 
+void drawFeaturePointsTrajectory(cv::Mat& frame,
+                                 const std::vector<cv::Point2f>& points_prev, const std::vector<cv::Point2f>& points_cur,
+                                 int rad,
+                                 const cv::Scalar& color_prev, const cv::Scalar& color_cur, const cv::Scalar& color_line);
+
 void drawFlowField(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& flowField,
                    bool auto_max = false, float* max_x = 0, float* max_y = 0);
 void drawOpticalFlowScatter(const cv::Mat& u,

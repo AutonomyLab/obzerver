@@ -16,10 +16,11 @@ protected:
   std::vector<float> freqs;
   std::vector<float> fft_power;
   cv::Mat hann_window;
+  std::size_t average_counter;
 
 public:
   Periodicity(const std::size_t hist_len, const float fps);
-  void Update(const cv::Mat& vec, const bool verbose);
+  void Update(const cv::Mat& vec, const bool average = false, const bool verbose = false);
   float GetDominantFrequency(const std::size_t start_index = 0) const;
   bool IsPeriodic() const ;
   const std::vector<float>& GetSpectrum() const {return fft_power;}

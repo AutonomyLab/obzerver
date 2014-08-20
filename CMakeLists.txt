@@ -26,6 +26,7 @@ set(obzerver_HEADERS
     include/obzerver/self_similarity.hpp
     include/obzerver/fft.hpp
     include/obzerver/tobject.hpp
+    include/opencv3-backport/shift.hpp
 )
 
 find_package(OpenCV REQUIRED NO_DEFAULT_PATH PATHS /home/autolab/Dev/opencv-2.4.9/build)

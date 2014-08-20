@@ -33,7 +33,8 @@ protected:
   std::vector<cv::Mat> camera_transform_hist_acc;
   cv::Ptr<cv::FeatureDetector> feature_detector;
 
-  cv::Mat cache_frame_stablized;
+  cv::Mat cache_frame_stablized_gray;
+  cv::Mat cache_frame_stablized_rgb;
   cv::Mat cache_frame_diff;
   cv::Mat cache_sof_image;
 
@@ -67,11 +68,12 @@ public:
                 const std::size_t pylk_winsize,
                 unsigned int pylk_iters = 30,
                 double pylk_eps = 0.01);
-  bool Update(const cv::Mat& frame_gray);
+  bool Update(const cv::Mat& frame_gray, const cv::Mat& frame_rgb);
 
   const cv::Mat& GetLatestDiff() const {return cache_frame_diff;}
   const cv::Mat& GetLatestSOF() const {return cache_sof_image;}
-  const cv::Mat& GetStablized() const {return cache_frame_stablized;}
+  const cv::Mat& GetStablizedGray() const {return cache_frame_stablized_gray;}
+  const cv::Mat& GetStablizedRGB() const {return cache_frame_stablized_rgb;}
   const pts_vec_t& GetTrackedFeaturesCurr() const {return tracked_features_curr;}
   const pts_vec_t& GetTrackedFeaturesPrev() const {return tracked_features_prev;}
   const cv::Mat& GetHomographyOutliers() const {return est_homography_outliers;}

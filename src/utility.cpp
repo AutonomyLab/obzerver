@@ -122,6 +122,18 @@ void drawFeaturePointsTrajectory(cv::Mat& frame,
     }
 }
 
+void drawFeaturePointsTrajectory(cv::Mat& frame,
+                                 const std::vector<cv::Point2f>& points_prev, const std::vector<cv::Point2f>& points_cur,
+                                 int rad,
+                                 const cv::Scalar& color_prev, const cv::Scalar& color_cur, const cv::Scalar& color_line)
+{
+    CV_Assert(points_prev.size() == points_cur.size());
+    for (unsigned int i = 0; i < points_prev.size(); i++) {
+          cv::circle(frame, points_prev.at(i), rad, CV_RGB(127, 127, 127), -1);
+          cv::circle(frame, points_cur.at(i), rad, CV_RGB(127, 127, 127), -1);
+          cv::line(frame, points_prev.at(i), points_cur.at(i), CV_RGB(127, 127, 127));
+    }
+}
 
 void drawFlowField(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& flowField,
                    bool auto_max, float* max_x, float* max_y)
