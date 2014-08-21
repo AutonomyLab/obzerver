@@ -10,17 +10,13 @@
 #include "obzerver/camera_tracker.hpp"
 #include "obzerver/object_tracker.hpp"
 
-void mouseCallback(int event, int x, int y, int idonnow, void* data) {
+void mouseCallback(int event, int x, int y, int flags, void* data) {
   if (event == cv::EVENT_LBUTTONDOWN) {
     bool* pause = (bool*) data;
     *pause = !(*pause);
   } else if (event == cv::EVENT_RBUTTONDOWN) {
     std::cout << "Right click at " << x << " , " << y << std::endl;
   }
-}
-
-void init_gui(cv::VideoCapture& capture, bool* pause) {
-;
 }
 
 int main(int argc, char* argv[]) {
@@ -172,7 +168,7 @@ int main(int argc, char* argv[]) {
       }
 
       if (display) {
-        //cv::Mat diff_frame = camera_tracker.GetLatestDiff();
+//        cv::Mat diff_frame = camera_tracker.GetLatestDiff();
         cv::Mat diff_frame;
         if (object_tracker.IsTracking()) {
           diff_frame = object_tracker.GetObject().GetSelfSimilarity().GetSimMatrixRendered();

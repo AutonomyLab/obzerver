@@ -97,11 +97,9 @@ T quick_median(std::vector<T> &v)
 // From: https://github.com/Itseez/opencv/blob/master/samples/cpp/fback.cpp
 void drawOpticalFlowVectors(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& cflowmap, int step, const cv::Scalar& color);
 void drawFeaturePoints(cv::Mat& frame, const std::vector<cv::Point2f>& points, const cv::Scalar& color, int rad = 2);
-void drawWeightedFeaturePoints(
-        cv::Mat& frame,
+void drawWeightedFeaturePoints(cv::Mat& frame,
         const std::vector<cv::Point2f>& points,
         const std::vector<cv::Size2f>& sizes,
-        const std::vector<cv::Point2f>& displacements,
         const std::vector<double>& weights,
         const cv::Scalar& color);
 

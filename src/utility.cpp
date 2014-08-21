@@ -29,7 +29,7 @@ void dumpCvMatInfo(const cv::Mat &m) {
     std::cout << m.size() << " : " << m.dims << " : " << getCvMatTypeStr(m.type()) << std::endl;
 }
 
-void drawOpticalFlowVectors(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& cflowmap, int step, const cv::Scalar& color)
+void drawOpticalFlowVectors(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& cflowmap, int step)
 {
     for(int y = 0; y < cflowmap.rows; y += step)
         for(int x = 0; x < cflowmap.cols; x += step)
@@ -83,7 +83,6 @@ void drawWeightedFeaturePoints(
         cv::Mat& frame,
         const std::vector<cv::Point2f>& points,
         const std::vector<cv::Size2f>& sizes,
-        const std::vector<cv::Point2f>& displacements,
         const std::vector<double>& weights,
         const cv::Scalar& color) {
 
@@ -123,15 +122,16 @@ void drawFeaturePointsTrajectory(cv::Mat& frame,
 }
 
 void drawFeaturePointsTrajectory(cv::Mat& frame,
-                                 const std::vector<cv::Point2f>& points_prev, const std::vector<cv::Point2f>& points_cur,
+                                 const std::vector<cv::Point2f>& points_prev,
+                                 const std::vector<cv::Point2f>& points_cur,
                                  int rad,
                                  const cv::Scalar& color_prev, const cv::Scalar& color_cur, const cv::Scalar& color_line)
 {
     CV_Assert(points_prev.size() == points_cur.size());
     for (unsigned int i = 0; i < points_prev.size(); i++) {
-          cv::circle(frame, points_prev.at(i), rad, CV_RGB(127, 127, 127), -1);
-          cv::circle(frame, points_cur.at(i), rad, CV_RGB(127, 127, 127), -1);
-          cv::line(frame, points_prev.at(i), points_cur.at(i), CV_RGB(127, 127, 127));
+          cv::circle(frame, points_prev.at(i), rad, color_prev, -1);
+          cv::circle(frame, points_cur.at(i), rad, color_cur, -1);
+          cv::line(frame, points_prev.at(i), points_cur.at(i), color_line);
     }
 }
 

@@ -39,6 +39,7 @@ protected:
   cv::Mat cache_sof_image;
 
   CircularBuffer<cv::Mat> frame_gray_hist; // Min size: 2
+  CircularBuffer<cv::Mat> diff_hist;
 
   std::vector<cv::KeyPoint> kpts;
   pts_vec_t tracked_features_prev;

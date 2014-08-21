@@ -14,13 +14,6 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
 {
   int NN = 1; // Prevent div/0
   double corr_weight = 0.0;
-//  cv::Rect bb = ClampRect(
-//        cv::Rect(X.bb.tl().x - 9, X.bb.tl().y - 9, 19, 19),
-//        cv::Rect(
-//          shared_data->crop, shared_data->crop,
-//          shared_data->obs_diff.cols - shared_data->crop, shared_data->obs_diff.rows - shared_data->crop
-//          )
-//        );
   for (int i = -9; i < 10; i+=2) {
     for (int j = -9; j < 10; j+=2) {
       int xx = (int) round(X.bb.tl().x) - i;
@@ -114,7 +107,7 @@ ObjectTracker::~ObjectTracker() {
 
 bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, const cv::Mat &img_sof, const cv::Mat &camera_transform)
 {
-  CV_Assert(img_diff.type() == CV_8UC1);
+  CV_Assert(img_diff.channels() == 1);
   //CV_Assert(img_sof.type() == CV_8UC1);
 
   // This is only shallow copy O(1)
@@ -160,11 +153,15 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   }
   cv::Mat particles_pose(pts, false);
   particles_pose = particles_pose.reshape(1);
-  dumpCvMatInfo(particles_pose);
-
-//  LOG(INFO) << particles_pose;
 
   ticker.tick("  [OT] Particles -> Mat");
+
+//  cv::Mat particles_mask = cv::Mat::zeros(img_stab.size(), CV_8UC1);
+//  for (std::size_t i = 0; i < pts.size(); i++) {
+//    cv::rectangle(particles_mask, cv::Rect(pts[i], cv::Size(5,5)), cv::Scalar(255, 255, 255));
+//  }
+//  cv::bitwise_and(img_stab, particles_mask, particles_mask);
+//  ticker.tick("  [OT] Particles Mask");
 
   unsigned short int k = 0;
   double err = 1e12;
@@ -227,6 +224,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
     } else {
       double min_dist = 1e12;
       cv::Rect bb;
+      cv::Mat fg; //foreground mask
       std::vector<cv::Point2f> cluster;
       std::vector<cv::Point2f> cluster_w;
       int min_dist_cluster = 0;
@@ -261,6 +259,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
                                  vec_cov[min_dist_cluster].at<double>(0,0),
                                  vec_cov[min_dist_cluster].at<double>(1,1),
                                  5.0, 100, img_diff.cols, img_diff.rows);
+
         tracking_counter = 15;
       } else {
         LOG(INFO) << "The closest cluster is far from current object being tracked, skipping";

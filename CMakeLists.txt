@@ -7,7 +7,6 @@ set(WITH_TESTS 1 CACHE BOOL "Build Tests (Requires Google Testing Framework)")
 set(CMAKE_BUILD_TYPE Debug)
 
 set(obzerver_SOURCES
-    src/demo.cpp
     src/utility.cpp
     src/benchmarker.cpp
     src/camera_tracker.cpp
@@ -40,15 +39,12 @@ if(OpenCV_FOUND)
     #message(STATUS ${LIBS})
 endif(OpenCV_FOUND)
 
-#find_package(MRPT REQUIRED base bayes)
-#include_directories(${MRPT_INCLUDE_DIRS})
-#set(LIBS ${LIBS} ${MRPT_LIBS})
-
 # glog debian package is available only on Ubuntu Trusy+
 pkg_check_modules(GLOG REQUIRED libglog)
 include_directories(${GLOG_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${GLOG_LIBRARIES})
 
+# -march=corei7-avx -mtune=corei7-avx -mno-avx -mno-aes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER} -std=c++0x -Wall -Wextra")
 add_subdirectory("3rdparty/smctc")
 include_directories(${smctc_SOURCE_DIR}/include)
@@ -58,9 +54,11 @@ message(STATUS "Libs: ${LIBS}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "CXX Flags (N|D|R): ${CMAKE_CXX_FLAGS} | ${CMAKE_CXX_FLAGS_DEBUG} | ${CMAKE_CXX_FLAGS_RELEASE}")
 
-add_executable(demo ${obzerver_SOURCES} ${obzerver_HEADERS})
+add_library(obzerver SHARED ${obzerver_SOURCES} ${obzerver_HEADERS})
+target_link_libraries(obzerver ${LIBS})
 
-target_link_libraries(demo ${LIBS} )
+add_executable(demo src/demo.cpp)
+target_link_libraries(demo obzerver ${OpenCV_LIBS} ${GLOG_LIBRARIES})
 
 if(WITH_TESTS)
     add_subdirectory(test)

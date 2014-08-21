@@ -18,6 +18,7 @@ CameraTracker::CameraTracker(const std::size_t hist_len,
   camera_transform_hist(hist_len),
   feature_detector(feature_detector),
   frame_gray_hist(2),
+  diff_hist(5),
   max_features(max_features),
   pylk_winsize(pylk_winsize),
   pylk_iters(pylk_iters),
@@ -124,7 +125,7 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
   }
 
   UpdateDiff();
-  UpdateSOF();
+  //UpdateSOF();
   ticker.tick("  [CT] Update Diff & SOF");
 
   UpdateAccumulatedTransforms();
@@ -141,7 +142,20 @@ void CameraTracker::UpdateDiff() {
   cv::meanStdDev(diff, thres_mean, thres_stddev);
   cv::threshold(diff, diff, thres_mean[0] + thres_stddev[0], 0, cv::THRESH_TOZERO);
 
-  cv::addWeighted(cache_frame_diff, 0.2, diff, 0.8, 0, cache_frame_diff);
+  diff_hist.push_front(diff);
+  cache_frame_diff = cv::Mat::zeros(diff.size(), CV_16UC1);
+  //cv::Mat trans_to_histlen = camera_transform_hist_acc.at(0).inv();
+  //cv::Mat dummy;
+  for (unsigned int i = 0; i < diff_hist.size(); i++) {
+    //cv::addWeighted(cache_frame_diff, 0.2, diff, 0.8, 0, cache_frame_diff);
+    //cv::Mat trans_to_current = camera_transform_hist_acc.at(i) * trans_to_histlen;
+    //cv::warpPerspective(diff_hist.at(i), dummy, trans_to_current, diff_hist.at(i).size());
+    //cv::add(cache_frame_diff, dummy, cache_frame_diff, cv::noArray(), 1);
+    cv::add(cache_frame_diff, diff_hist.at(i), cache_frame_diff, cv::noArray(), 1);
+    //cv::bitwise_and(cache_frame_diff, dummy, cache_frame_diff);
+  }
+
+  cache_frame_diff = cache_frame_diff * (1.0 / diff_hist.size());
 }
 
 // TODO: Move all params
@@ -162,10 +176,11 @@ void CameraTracker::UpdateSOF() {
   }
 }
 
+// CTHA[i] = From Frame t-i to frame t-histlen+1
 void CameraTracker::UpdateAccumulatedTransforms() {
   camera_transform_hist_acc.resize(camera_transform_hist.size());
   // Skip the last element, it should eye(3,3)
-  unsigned int index = camera_transform_hist_acc.size() - 1;
+  unsigned int index = camera_transform_hist_acc.size() - 1;  
   camera_transform_hist_acc[index] = cv::Mat::eye(3, 3, CV_64FC1);
   for (CircularBuffer<cv::Mat>::const_reverse_iterator it = camera_transform_hist.rbegin() + 1 ;
        it != camera_transform_hist.rend(); it++) {
