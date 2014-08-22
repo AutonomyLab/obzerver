@@ -29,7 +29,7 @@ set(obzerver_HEADERS
 
 if(USE_CUSTOM_OPENCV)
   message(STATUS "Using custom OpenCV path: ${OpenCV_DIR}")
-  find_package(OpenCV REQUIRED NO_DEFAULT_PATH)
+  find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR} NO_DEFAULT_PATH)
 else(USE_CUSTOM_OPENCV)
   message(STATUS "Using default OpenCV path.")
   find_package(OpenCV REQUIRED)
