@@ -167,12 +167,9 @@ void SelfSimilarity::Update() {
   const std::size_t w = quick_median(widths)* 0.5;
   const std::size_t h = quick_median(heights) * 0.5;
 
-  LOG(INFO) << "Median Size: " << w << ", " << h << " @ " << sequence.size();
+//  LOG(INFO) << "Median Size: " << w << ", " << h << " @ " << sequence.size();
 
   cv::Mat m1_resized = cv::Mat::zeros(h, w, CV_8UC1);
-  cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
-  cv::Mat buff = cv::Mat::zeros(h, w, CV_8UC1);
-
   cv3::shift(sim_matrix, sim_matrix, cv::Point2f(1.0,1.0));
 
 #if 1
@@ -187,6 +184,8 @@ void SelfSimilarity::Update() {
           ), 4 // Use Four Threads
         );
 #else
+  cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
+  cv::Mat buff = cv::Mat::zeros(h, w, CV_8UC1);
   cv::resize(sequence.at(0), m1_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
 
   for (std::size_t t1 = 0; t1 < sequence.size(); t1++) {

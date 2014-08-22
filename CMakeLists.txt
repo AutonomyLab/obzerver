@@ -3,8 +3,8 @@ project(obzerver)
 find_package(PkgConfig)
 
 set(WITH_TESTS 1 CACHE BOOL "Build Tests (Requires Google Testing Framework)")
-
-set(CMAKE_BUILD_TYPE Debug)
+set(USE_CUSTOM_OPENCV 0 CACHE BOOL "Use Custom Path for OpenCV (Provided by OPENCV_CUSTOM_PATH")
+set(OPENCV_CUSTOM_PATH "" CACHE STRING "Non-default path for OpenCV")
 
 set(obzerver_SOURCES
     src/utility.cpp
@@ -28,14 +28,20 @@ set(obzerver_HEADERS
     include/opencv3-backport/shift.hpp
 )
 
-find_package(OpenCV REQUIRED NO_DEFAULT_PATH PATHS /home/autolab/Dev/opencv-2.4.9/build)
+if(USE_CUSTOM_OPENCV)
+  message(STATUS "Using custom OpenCV path: ${OPENCV_CUSTOM_PATH}")
+  find_package(OpenCV REQUIRED NO_DEFAULT_PATH PATHS ${OPENCV_CUSTOM_PATH})
+else(USE_CUSTOM_OPENCV)
+  message(STATUS "Using default OpenCV path.")
+  find_package(OpenCV REQUIRED)
+endif(USE_CUSTOM_OPENCV)
 
 include_directories(${obzerver_SOURCE_DIR}/include)
 
 if(OpenCV_FOUND)
     include_directories(${OpenCV_INCLUDE_DIRS})
     set(LIBS ${LIBS} ${OpenCV_LIBS})
-    #message(STATUS ${OpenCV_INCLUDE_DIRS})
+    message(STATUS "OpenCV include dir: ${OpenCV_INCLUDE_DIRS}")
     #message(STATUS ${LIBS})
 endif(OpenCV_FOUND)
 
@@ -52,7 +58,6 @@ set(LIBS ${LIBS} "smctc")
 
 message(STATUS "Libs: ${LIBS}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "CXX Flags (N|D|R): ${CMAKE_CXX_FLAGS} | ${CMAKE_CXX_FLAGS_DEBUG} | ${CMAKE_CXX_FLAGS_RELEASE}")
 
 add_library(obzerver SHARED ${obzerver_SOURCES} ${obzerver_HEADERS})
 target_link_libraries(obzerver ${LIBS})

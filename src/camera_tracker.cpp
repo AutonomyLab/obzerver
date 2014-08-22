@@ -31,7 +31,6 @@ CameraTracker::CameraTracker(const std::size_t hist_len,
 
 bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) {
   frame_gray_hist.push_front(frame_gray.clone());
-  LOG(INFO) << "Size: " << frame_gray_hist.size();
   ticker.tick("  [CT] Frame Copy");
   if (!initialized) {
     initialized = true;

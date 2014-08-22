@@ -17,7 +17,7 @@ Periodicity::Periodicity(const std::size_t hist_len, const float fps)
       hann_window.at<float>(i) = 0.5 * (1.0 - cos( (6.2832f * float(i)) / (float(hist_len) - 1.0)));
       //std::cout << i << " : " << hann_window[i] << std::endl;
   }
-  LOG(INFO) << "Hanning window initialized." << hann_window.t();
+  //LOG(INFO) << "Hanning window initialized." << hann_window.t();
 
 }
 
