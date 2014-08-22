@@ -3,8 +3,7 @@ project(obzerver)
 find_package(PkgConfig)
 
 set(WITH_TESTS 1 CACHE BOOL "Build Tests (Requires Google Testing Framework)")
-set(USE_CUSTOM_OPENCV 0 CACHE BOOL "Use Custom Path for OpenCV (Provided by OPENCV_CUSTOM_PATH")
-set(OPENCV_CUSTOM_PATH "" CACHE STRING "Non-default path for OpenCV")
+set(USE_CUSTOM_OPENCV 0 CACHE BOOL "Use Custom Path for OpenCV (Provided by OpenCV_DIR")
 
 set(obzerver_SOURCES
     src/utility.cpp
@@ -29,8 +28,8 @@ set(obzerver_HEADERS
 )
 
 if(USE_CUSTOM_OPENCV)
-  message(STATUS "Using custom OpenCV path: ${OPENCV_CUSTOM_PATH}")
-  find_package(OpenCV REQUIRED NO_DEFAULT_PATH PATHS ${OPENCV_CUSTOM_PATH})
+  message(STATUS "Using custom OpenCV path: ${OpenCV_DIR}")
+  find_package(OpenCV REQUIRED NO_DEFAULT_PATH)
 else(USE_CUSTOM_OPENCV)
   message(STATUS "Using default OpenCV path.")
   find_package(OpenCV REQUIRED)

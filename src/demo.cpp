@@ -90,6 +90,15 @@ int main(int argc, char* argv[]) {
 
  LOG(INFO) << "Video Source: " << video_src;
 
+  int opengl_flags = 0;
+  try {
+    cv::namedWindow("dummy", cv::WINDOW_OPENGL);
+    opengl_flags = cv::WINDOW_OPENGL;
+    cv::destroyWindow("dummy");
+  } catch (const cv::Exception& ex) {
+    LOG(WARNING) << "OpenCV without OpenGL support.";
+  }
+
   try {
     if (use_webam && !capture.open(0)) {
       LOG(ERROR) << "Can not webcam";
@@ -107,9 +116,9 @@ int main(int argc, char* argv[]) {
     }
     if (display) {
       const long int num_frames = use_webam ? 0 : capture.get(CV_CAP_PROP_FRAME_COUNT);
-      cv::namedWindow("Original", cv::WINDOW_AUTOSIZE | cv::WINDOW_OPENGL);
-      cv::namedWindow("DiffStab", cv::WINDOW_NORMAL | cv::WINDOW_OPENGL);
-      cv::namedWindow("Debug", cv::WINDOW_NORMAL | cv::WINDOW_OPENGL);
+      cv::namedWindow("Original", cv::WINDOW_AUTOSIZE | opengl_flags);
+      cv::namedWindow("DiffStab", cv::WINDOW_NORMAL | opengl_flags);
+      cv::namedWindow("Debug", cv::WINDOW_NORMAL | opengl_flags);
       if (num_frames > 0) {
         cv::createTrackbar("Browse", "Original", 0, num_frames, trackbarCallback, &trackbar_data);
         cv::setTrackbarPos("Browse", "Original", frame_counter);
