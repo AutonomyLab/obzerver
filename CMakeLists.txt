@@ -18,6 +18,7 @@ set(obzerver_SOURCES
     src/self_similarity.cpp
     src/fft.cpp
     src/tobject.cpp
+    src/logger.cpp
 )
 
 set(obzerver_HEADERS
@@ -29,6 +30,7 @@ set(obzerver_HEADERS
     include/obzerver/self_similarity.hpp
     include/obzerver/fft.hpp
     include/obzerver/tobject.hpp
+    include/obzerver/logger.hpp
     include/obzerver/opencv3-backport/shift.hpp
 )
 

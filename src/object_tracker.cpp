@@ -5,7 +5,6 @@
 #include "obzerver/fft.hpp"
 
 #include "opencv2/core/core.hpp"
-
 #include "opencv2/ml/ml.hpp"
 
 cv::Ptr<smc_shared_param_t> shared_data;

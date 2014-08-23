@@ -5,6 +5,7 @@
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
+#include "obzerver/logger.hpp"
 #include "obzerver/utility.hpp"
 #include "obzerver/benchmarker.hpp"
 #include "obzerver/camera_tracker.hpp"
@@ -20,7 +21,6 @@ void mouseCallback(int event, int x, int y, int flags, void* data) {
 }
 
 int main(int argc, char* argv[]) {
-  google::InitGoogleLogging(argv[0]);
 
   cv::CommandLineParser cmd(argc, argv,
               "{ v  | video | | specify video file}"
@@ -67,12 +67,7 @@ int main(int argc, char* argv[]) {
 
   /* Logger */
 
-  if (logfile.empty()) {
-    google::LogToStderr();
-  } else {
-    std::cout << "Logging to: " <<  logfile << std::endl;
-    google::SetLogDestination(google::GLOG_INFO, logfile.c_str());
-  }
+  obz_log_config(argv[0], logfile);
 
   /* Variables */
   unsigned long int frame_counter = 0;
@@ -88,7 +83,7 @@ int main(int argc, char* argv[]) {
   trackbar_data_t trackbar_data(&capture, &frame_counter);
   ObjectTracker object_tracker(param_num_particles, param_hist_len, fps);
 
- LOG(INFO) << "Video Source: " << video_src;
+  LOG(INFO) << "Video Source: " << video_src;
 
   int opengl_flags = 0;
   try {
