@@ -4,12 +4,13 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/video/tracking.hpp"
-#include "opencv3-backport/shift.hpp"
+
 
 #include "glog/logging.h"
 
 #include "obzerver/utility.hpp"
 #include "obzerver/self_similarity.hpp"
+#include "obzerver/opencv3-backport/shift.hpp"
 
 class ParallelFrameSimilarity: public cv::ParallelLoopBody {
 private:

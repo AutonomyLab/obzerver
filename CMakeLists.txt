@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 2.8)
 project(obzerver)
 find_package(PkgConfig)
 
-set(WITH_TESTS 1 CACHE BOOL "Build Tests (Requires Google Testing Framework)")
+set(PROJECT_VERSION_MAJOR "0")
+set(PROJECT_VERSION_MINOR "1")
+set(PROJECT_VERSION_PATCH "0")
+set(PROJECT_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+
+set(WITH_TESTS 0 CACHE BOOL "Build Tests (Requires Google Testing Framework)")
 set(USE_CUSTOM_OPENCV 0 CACHE BOOL "Use Custom Path for OpenCV (Provided by OpenCV_DIR")
 
 set(obzerver_SOURCES
@@ -24,7 +29,7 @@ set(obzerver_HEADERS
     include/obzerver/self_similarity.hpp
     include/obzerver/fft.hpp
     include/obzerver/tobject.hpp
-    include/opencv3-backport/shift.hpp
+    include/obzerver/opencv3-backport/shift.hpp
 )
 
 if(USE_CUSTOM_OPENCV)
@@ -69,3 +74,34 @@ if(WITH_TESTS)
     enable_testing()
     add_test(NAME Test COMMAND obz_tests)
 endif(WITH_TESTS)
+
+# Without proper find-obzerver.cmake, the library wont work with isolated
+# catkin workspaces.
+# The cmake.in file has been borrowed from mavlink project
+
+set(PKG_NAME ${PROJECT_NAME})
+set(PKG_VERSION ${PROJECT_VERSION})
+set(PKG_DESC "obzerver")
+set(PKG_LIBRARIES )
+set(PKG_DEPENDS )
+
+configure_file(config.cmake.in ${PROJECT_NAME}-config.cmake @ONLY)
+install(
+  FILES ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
+  DESTINATION share/${PROJECT_NAME}/cmake/ COMPONENT cmake
+)
+
+install(TARGETS obzerver
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
+
+install(FILES ${obzerver_HEADERS}
+  DESTINATION include/obzerver
+)
+
+install(
+  FILES package.xml
+  DESTINATION share/${PROJECT_NAME}
+)
