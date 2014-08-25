@@ -164,17 +164,20 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   unsigned short int k = 0;
   double err = 1e12;
   std::vector<cv::Mat> vec_cov;
-  for (k = 1; k < 5 && err > clustering_err_threshold; k++) {
-    cv::EM em_estimator(k, cv::EM::COV_MAT_DIAGONAL, cv::TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 100, 0.01));
+  for (k = 1; k < 4 && err > clustering_err_threshold; k++) {
+    cv::EM em_estimator(k,
+                        cv::EM::COV_MAT_DIAGONAL,
+                        cv::TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 100, 0.01));
+
     em_estimator.train(particles_pose, cv::noArray(), labels, cv::noArray());
 
     centers = em_estimator.get<cv::Mat>("means");
     vec_cov = em_estimator.get<std::vector<cv::Mat> >("covs");
-    LOG(INFO) << "EM k: " << k;
+//    LOG(INFO) << "EM k: " << k;
     err = 0.0;
     for (std::size_t c = 0; c < vec_cov.size(); c++) {
       err += (sqrt(vec_cov[c].at<double>(0,0)) + sqrt(vec_cov[c].at<double>(1,1)));
-      LOG(INFO) << "-- " << c << " : " << centers.row(c) << " " << err;//vec_cov[c];
+//      LOG(INFO) << "-- " << c << " : " << centers.row(c) << " " << err;//vec_cov[c];
     }
     err /= double(k);
 //    err = cv::kmeans(particles_pose, // Only on positions
