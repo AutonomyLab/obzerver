@@ -23,7 +23,6 @@ void TObject::Update(const cv::Mat &frame, const object_t &obj, const bool reset
   if (self_similarity.IsFull()) {
     for (int i = 0; i < self_similarity.GetSimMatrix().cols; i+=15) {
       // First time, reset the spectrum, then add up the power
-      LOG(INFO) << "Trying with " << i;
       periodicity.Update(self_similarity.GetSimMatrix().row(i), i != 0, false);
     }
     LOG(INFO) << "Avg Spectrum: " << cv::Mat(periodicity.GetSpectrum(), false).t();

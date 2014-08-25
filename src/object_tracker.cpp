@@ -32,7 +32,7 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
   //corr_weight = (fabs(corr_weight > 1e-6)) ? log(corr_weight/NN) : -13.0;
   corr_weight = (fabs(corr_weight > 1e-6)) ? (corr_weight/(float(NN) * 512.0)) : 1e-6;
   //OG(INFO) << corr_weight;
-  return corr_weight;
+  return log(corr_weight);
 }
 
 smc::particle<particle_state_t> ParticleInitialize(smc::rng *rng)
@@ -41,8 +41,8 @@ smc::particle<particle_state_t> ParticleInitialize(smc::rng *rng)
   p.bb.x = rng->Uniform(shared_data->crop, shared_data->obs_diff.cols - shared_data->crop);
   p.bb.y = rng->Uniform(shared_data->crop, shared_data->obs_diff.rows - shared_data->crop);
   p.recent_random_move = true;
-  //return smc::particle<particle_state_t>(p, -log(shared_data->num_particles)); // log(1/1000)
-  return smc::particle<particle_state_t>(p, ParticleObservationUpdate(0, p)); // log(1/1000)
+  return smc::particle<particle_state_t>(p, -log(shared_data->num_particles)); // log(1/1000)
+  //return smc::particle<particle_state_t>(p, ParticleObservationUpdate(0, p)); // log(1/1000)
 }
 
 void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
@@ -58,9 +58,8 @@ void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
     cv_to->bb.x = rng->Uniform(shared_data->crop, shared_data->obs_diff.cols - shared_data->crop);
     cv_to->bb.y = rng->Uniform(shared_data->crop, shared_data->obs_diff.rows - shared_data->crop);
   }
-  X.MultiplyWeightBy(ParticleObservationUpdate(t, *cv_to));
-  //X.AddToLogWeight(ParticleObservationUpdate(t, *cv_to));
-
+  //X.MultiplyWeightBy(ParticleObservationUpdate(t, *cv_to));
+  X.AddToLogWeight(ParticleObservationUpdate(t, *cv_to));
 }
 
 // We are sharing img_diff and img_sof by reference (no copy)
@@ -97,11 +96,11 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   sampler.SetMoveSet(moveset);
   sampler.Initialise();
 
-  LOG(INFO) << "Initialized object tracker with " << num_particles << " particles.";
+  LOG(INFO) << "[OT] Initialized object tracker with " << num_particles << " particles.";
 }
 
 ObjectTracker::~ObjectTracker() {
-  LOG(INFO) << "Object tracker destroyed.";
+  ;
 }
 
 bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, const cv::Mat &img_sof, const cv::Mat &camera_transform)
@@ -145,9 +144,9 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
     }
   }
 
-  LOG(INFO) << "Number of particles to consider: " << pts.size();
+  LOG(INFO) << "[OT] Number of particles to consider: " << pts.size();
   if (pts.size() < 0.5 * sampler.GetNumber()) {
-    LOG(WARNING) << "Number of non-random partilces are not enough for clustering ...";
+    LOG(WARNING) << "[OT] Number of non-random partilces are not enough for clustering ...";
     return false;
   }
   cv::Mat particles_pose(pts, false);
@@ -189,20 +188,19 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   }
   if (err <= clustering_err_threshold) {
     num_clusters = k - 1;
-    LOG(INFO) << "Particles: "<< particles_pose.rows << " Number of clusers in particles: " << num_clusters << " Centers" << centers << " err: " << err;
+    LOG(INFO) << "[OT]  Particles: "<< particles_pose.rows << " Number of clusers in particles: " << num_clusters << " Centers" << centers << " err: " << err;
   } else {
     num_clusters = 0;
-    LOG(WARNING) << "Clustering failed. Particles are very sparse.";
+    LOG(WARNING) << "[OT]  Clustering failed. Particles are very sparse.";
   }
 
   ticker.tick("  [OT] Clustering");
 
   if (status == TRACKING_STATUS_LOST) {
     if (num_clusters != 1) {
-      LOG(INFO) << "Waiting for first dense cluser ...";
+      LOG(INFO) << "[OT]  Waiting for first dense cluser ...";
     } else {
-      // All pts are condensed enough to form a bounding box
-      LOG(INFO) << "Coovariance: " << vec_cov[0];
+      // All pts are condensed enough to form a bounding box     
       tobject.Update(img_stab, GenerateBoundingBox(pts,
                                                    cv::Point2f(centers.at<double>(0,0), centers.at<double>(0, 1)),
                                                    vec_cov[0].at<double>(0,0),
@@ -217,7 +215,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
     tracked_bb.x = p_stab.x;
     tracked_bb.y = p_stab.y;
     if (tracking_counter == 0) {
-      LOG(INFO) << "Lost Track";
+      LOG(WARNING) << "[OT] Lost Track";
       tobject.Reset();
       status = TRACKING_STATUS_LOST;
     } else {
@@ -232,15 +230,15 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
         double dist = pow(pt.x - rectCenter(tracked_bb).x, 2);
         dist += pow(pt.y - rectCenter(tracked_bb).y, 2);
         dist = sqrt(dist);
-        LOG(INFO) << "Distance frome " << rectCenter(tracked_bb) << " to " << pt << " is " << dist << std::endl;
+        //LOG(INFO) << "[OT] Distance frome " << rectCenter(tracked_bb) << " to " << pt << " is " << dist << std::endl;
         if (dist < min_dist) {
           min_dist = dist;
           min_dist_cluster = i;
         }
       }
-      LOG(INFO) << "Chose cluster #" << min_dist_cluster << " with d = " << min_dist;
+      LOG(INFO) << "[OT] Chose cluster #" << min_dist_cluster << " with d = " << min_dist;
       if (num_clusters == 0) {
-        LOG(INFO) << "No cluster at all. Skipping.";
+        LOG(WARNING) << "[OT] No cluster at all. Skipping.";
         bb = tracked_bb;
         tracking_counter--;
       }
@@ -251,21 +249,27 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
                 cluster_w.push_back(pts_w.at(i));
             }
         }
-        LOG(INFO) << "Subset size: " << cluster.size() << std::endl;
-        LOG(INFO) << "Coovariance: " << vec_cov[min_dist_cluster];
+        //LOG(INFO) << "Subset size: " << cluster.size() << std::endl;
+        //LOG(INFO) << "Coovariance: " << vec_cov[min_dist_cluster];
         bb = GenerateBoundingBox(cluster,
                                  cv::Point2f(centers.at<double>(min_dist_cluster,0), centers.at<double>(min_dist_cluster, 1)),
                                  vec_cov[min_dist_cluster].at<double>(0,0),
                                  vec_cov[min_dist_cluster].at<double>(1,1),
                                  5.0, 100, img_diff.cols, img_diff.rows);
 
-        tracking_counter = 15;
+        if (bb.area() == 0 ) {
+          LOG(WARNING) << "[OT] Cluster BB is outside of image";
+          tracking_counter--;
+          bb = tracked_bb;
+        } else {
+          tracking_counter = 15;
+        }
       } else {
-        LOG(INFO) << "The closest cluster is far from current object being tracked, skipping";
+        LOG(INFO) << "[OT] The closest cluster is far from current object being tracked, skipping";
         bb = tracked_bb;
         tracking_counter--;
       }
-      LOG(INFO) << " BB: " << bb;
+//      LOG(INFO) << " BB: " << bb;
       const double param_lpf = 0.5;
       tracked_bb.x = param_lpf * tracked_bb.x + (1.0 - param_lpf) * bb.x;
       tracked_bb.y = param_lpf * tracked_bb.y + (1.0 - param_lpf) * bb.y;
@@ -277,7 +281,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   }
 
   ticker.tick("  [OT] Tracking");
-  LOG(INFO) << "Tracking Status: " << status  << " Tracked: " << GetObjectBoundingBox();
+  LOG(INFO) << "[OT] Tracking Status: " << status  << " Tracked: " << GetObjectBoundingBox();
   return true;
 }
 
@@ -302,7 +306,7 @@ cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f> &pts,
     }
   }
 
-  LOG(INFO) << "Pruning: " << pts_inliers.size() << " / " << pts.size();
+  //LOG(INFO) << "Pruning: " << pts_inliers.size() << " / " << pts.size();
   cv::Scalar _c, _s;
   cv::meanStdDev(pts_inliers, _c, _s);
   const double _w = std::min(_s[0] * alpha, (double) max_width);
@@ -316,7 +320,7 @@ cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f> &pts,
         int(_h)
       );
 
-  LOG(INFO) << "Generate BB: " << _c[0] << " " << _c[1] << " " << _s[0] <<  " " << _s[1];
+  //LOG(INFO) << "Generate BB: " << _c[0] << " " << _c[1] << " " << _s[0] <<  " " << _s[1];
   return ClampRect(bb, boundary_width, boundary_height);
 }
 

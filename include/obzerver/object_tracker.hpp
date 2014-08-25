@@ -38,8 +38,6 @@ void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng* rng);
 
 /* The Tracker */
 
-
-
 enum tracking_status_t {
   TRACKING_STATUS_LOST = 0,
   TRACKING_STATUS_NEW,
