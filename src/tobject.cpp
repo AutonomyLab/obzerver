@@ -18,6 +18,7 @@ void TObject::Reset() {
 
 void TObject::Update(const cv::Mat &frame, const object_t &obj, const bool reset) {
   if (reset) Reset();
+  LOG(INFO) << "[TObj] Updating with: " << obj.bb << " | Reset: " << reset;
   obj_hist.push_front(obj);
   self_similarity.Update(frame(obj.bb).clone());
   if (self_similarity.IsFull()) {
