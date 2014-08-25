@@ -201,13 +201,18 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
       LOG(INFO) << "[OT]  Waiting for first dense cluser ...";
     } else {
       // All pts are condensed enough to form a bounding box     
-      tobject.Update(img_stab, GenerateBoundingBox(pts,
-                                                   cv::Point2f(centers.at<double>(0,0), centers.at<double>(0, 1)),
-                                                   vec_cov[0].at<double>(0,0),
-                                                   vec_cov[0].at<double>(1,1),
-                                                   5.0, 100.0, img_diff.cols, img_diff.rows), true);
-      status = TRACKING_STATUS_TRACKING;
-      tracking_counter = 15;
+      cv::Rect new_bb = GenerateBoundingBox(pts,
+                                            cv::Point2f(centers.at<double>(0,0), centers.at<double>(0, 1)),
+                                            vec_cov[0].at<double>(0,0),
+                                            vec_cov[0].at<double>(1,1),
+                                            5.0, 100.0, img_diff.cols, img_diff.rows);
+      if (new_bb.area() > 0) {
+        tobject.Update(img_stab, new_bb, true);
+        status = TRACKING_STATUS_TRACKING;
+        tracking_counter = 15;
+      } else {
+        LOG(WARNING) << "[OT] Initial BB has area of size 0. Skipping.";
+      }
     }
   } else if (status == TRACKING_STATUS_TRACKING) {
     cv::Rect tracked_bb = tobject().latest().bb;
@@ -257,13 +262,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
                                  vec_cov[min_dist_cluster].at<double>(1,1),
                                  5.0, 100, img_diff.cols, img_diff.rows);
 
-        if (bb.area() == 0 ) {
-          LOG(WARNING) << "[OT] Cluster BB is outside of image";
-          tracking_counter--;
-          bb = tracked_bb;
-        } else {
-          tracking_counter = 15;
-        }
+        tracking_counter = 15;
       } else {
         LOG(INFO) << "[OT] The closest cluster is far from current object being tracked, skipping";
         bb = tracked_bb;
@@ -276,7 +275,14 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
       tracked_bb.width = param_lpf * tracked_bb.width + (1.0 - param_lpf) * bb.width;
       tracked_bb.height = param_lpf * tracked_bb.height + (1.0 - param_lpf) * bb.height;
       tracked_bb = ClampRect(tracked_bb, img_stab.cols, img_stab.rows);
-      tobject.Update(img_stab, tracked_bb);
+      if (tracked_bb.area() == 0) {
+        // 0-tolerance!
+        LOG(WARNING) << "Tracked BB Area is 0. Resetting.";
+        tobject.Reset();
+        status = TRACKING_STATUS_LOST;
+      } else {
+        tobject.Update(img_stab, tracked_bb);
+      }
     }
   }
 
