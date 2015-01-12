@@ -31,7 +31,7 @@ CameraTracker::CameraTracker(const std::size_t hist_len,
 
 bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) {
   frame_gray_hist.push_front(frame_gray.clone());
-  ticker.tick("  [CT] Frame Copy");
+  ticker.tick("CT_Frame_Copy");
   if (!initialized) {
     initialized = true;
     FailureUpdate();
@@ -40,8 +40,8 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
 
   kpts.clear();
   feature_detector->detect(frame_gray_hist.prev(), kpts);
-  ticker.tick("  [CT] Feature Detection");
-  LOG(INFO) << "[CT] Keypoints: " << kpts.size();
+  ticker.tick("CT_Feature_Detection");
+  LOG(INFO) << "CT_Keypoints: " << kpts.size();
   std::size_t pts_to_copy = 0;
 
   if (kpts.size() > max_features) {
@@ -51,7 +51,7 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
     pts_to_copy = kpts.size();
   }
 
-  ticker.tick("  [CT] Sorting");
+  ticker.tick("CT_Sorting");
   LOG(INFO) << "[CT] Keypoints to copy: " << pts_to_copy;
 
   detected_features_prev.resize(pts_to_copy);
@@ -86,7 +86,7 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
     FailureUpdate();
     return false;
   }
-  ticker.tick("  [CT] Feature Tracking");
+  ticker.tick("CT_Feature_Tracking");
   LOG(INFO) << "[CT] Tracked Features: " << tracked_features_curr.size();
   if (tracked_features_curr.size() > 10) {
     est_homography_transform = cv::findHomography(
@@ -116,7 +116,7 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
     }
 
     camera_transform_hist.push_front(est_homography_transform.clone());
-    ticker.tick("  [CT] Find Homography");
+    ticker.tick("CT_Find_Homography");
   } else {
     LOG(WARNING) << "[CT] Not enough feature points to do stablization";
     FailureUpdate();
@@ -125,10 +125,10 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
 
   UpdateDiff();
   //UpdateSOF();
-  ticker.tick("  [CT] Update Diff & SOF");
+  ticker.tick("CT_Update_Diff_&_SOF");
 
   UpdateAccumulatedTransforms();
-  ticker.tick("  [CT] Acc Camera Trans");
+  ticker.tick("CT_Acc_Camera_Trans");
   return true;
 }
 

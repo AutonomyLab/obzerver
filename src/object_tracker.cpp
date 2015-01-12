@@ -114,7 +114,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   shared_data->camera_transform = camera_transform;
 
   sampler.Iterate();
-  ticker.tick("  [OT] Particle Filter");
+  ticker.tick("OT_Particle_Filter");
 
   // to use this method smctc/sampler.hh needs to be pathced to
   // return the pParticles pointer
@@ -152,7 +152,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   cv::Mat particles_pose(pts, false);
   particles_pose = particles_pose.reshape(1);
 
-  ticker.tick("  [OT] Particles -> Mat");
+  ticker.tick("OT_Particles_to_Mat");
 
 //  cv::Mat particles_mask = cv::Mat::zeros(img_stab.size(), CV_8UC1);
 //  for (std::size_t i = 0; i < pts.size(); i++) {
@@ -197,7 +197,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
     LOG(WARNING) << "[OT]  Clustering failed. Particles are very sparse.";
   }
 
-  ticker.tick("  [OT] Clustering");
+  ticker.tick("OT_Clustering");
 
   if (status == TRACKING_STATUS_LOST) {
     if (num_clusters != 1) {
@@ -289,7 +289,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
     }
   }
 
-  ticker.tick("  [OT] Tracking");
+  ticker.tick("OT_Tracking");
   LOG(INFO) << "[OT] Tracking Status: " << status  << " Tracked: " << GetObjectBoundingBox();
   return true;
 }

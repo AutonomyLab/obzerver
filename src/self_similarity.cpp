@@ -203,7 +203,7 @@ void SelfSimilarity::Update() {
     WriteToDisk("./data");
   }
 
-  ticker.tick("  [SS] Self Similarity Update");
+  ticker.tick("SS_Self_Similarity_Update");
 }
 
 const cv::Mat& SelfSimilarity::GetSimMatrix() const {

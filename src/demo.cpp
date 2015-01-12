@@ -123,15 +123,15 @@ int main(int argc, char* argv[]) {
 
     ticker.reset();
     while (capture.read(frame)) {
-      ticker.tick("Frame Capture");
+      ticker.tick("ML_Frame_Capture");
       if (downsample_factor < 1.0 && downsample_factor > 0.0) {
         cv::resize(frame, frame, cv::Size(0, 0), downsample_factor, downsample_factor, cv::INTER_CUBIC);
-        ticker.tick("Downsampling");
+        ticker.tick("ML_Downsampling");
       }
       LOG(INFO) << "Frame: " << frame_counter << " [" << frame.cols << " x " << frame.rows << "]";
       if (display && !use_webam && (frame_counter % 10 == 0)) cv::setTrackbarPos("Browse", "Original", frame_counter);
       cv::cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
-      ticker.tick("Frame 2 Gray");
+      ticker.tick("ML_Frame_2_Gray");
       bool ct_success = camera_tracker.Update(frame_gray, frame);
       cv::Point2d center;
       double _w=0.0, _h=0.0, _f=-1.0;
@@ -199,7 +199,7 @@ int main(int argc, char* argv[]) {
         if (diff_frame.data) cv::imshow("DiffStab", diff_frame);
         if (debug_frame.data) cv::imshow("Debug", debug_frame);
         cv::waitKey(10);
-        ticker.tick("Visualization");
+        ticker.tick("ML_Visualization");
       }
       ticker.dump(clear);
       while (display && pause) cv::waitKey(100);
