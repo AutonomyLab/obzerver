@@ -86,12 +86,15 @@ int main(int argc, char* argv[]) {
   LOG(INFO) << "Video Source: " << video_src;
 
   int opengl_flags = 0;
-  try {
-    cv::namedWindow("dummy", cv::WINDOW_OPENGL);
-    opengl_flags = cv::WINDOW_OPENGL;
-    cv::destroyWindow("dummy");
-  } catch (const cv::Exception& ex) {
-    LOG(WARNING) << "OpenCV without OpenGL support.";
+  if (display)
+  {
+      try {
+        cv::namedWindow("dummy", cv::WINDOW_OPENGL);
+        opengl_flags = cv::WINDOW_OPENGL;
+        cv::destroyWindow("dummy");
+      } catch (const cv::Exception& ex) {
+        LOG(WARNING) << "OpenCV without OpenGL support.";
+      }
   }
 
   try {
