@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
   const float downsample_factor = cmd.get<float>("downsample");
   bool pause = cmd.get<bool>("pause");
   const std::string logfile = cmd.get<std::string>("logfile");
-  const unsigned long int start_frame = cmd.get<unsigned long int>("skip");
+  const std::size_t start_frame = cmd.get<std::size_t>("skip");
   const float fps = cmd.get<float>("fps");
 
   const std::size_t param_max_features = cmd.get<std::size_t>("numfeatures");
