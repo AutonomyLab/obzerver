@@ -138,8 +138,8 @@ void CameraTracker::UpdateDiff() {
 
   cv::Mat diff;
   cv::absdiff(cache_frame_stablized_gray, frame_gray_hist.prev(), diff);
-  cv::meanStdDev(diff, thres_mean, thres_stddev);
-  cv::threshold(diff, diff, thres_mean[0] + thres_stddev[0], 0, cv::THRESH_TOZERO);
+  //cv::meanStdDev(diff, thres_mean, thres_stddev);
+  //cv::threshold(diff, diff, thres_mean[0] + thres_stddev[0], 0, cv::THRESH_TOZERO);
 
   diff_hist.push_front(diff);
   cache_frame_diff = cv::Mat::zeros(diff.size(), CV_16UC1);

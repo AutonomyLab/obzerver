@@ -15,7 +15,7 @@ inline cv::Point_<T> rectCenter(const cv::Rect_<T>& r) {
     return cv::Point_<T>(r.x + (r.width/static_cast<T>(2)), r.y + (r.height/static_cast<T>(2)));
 }
 
-inline cv::Point2f transformPoint(const cv::Point2f& pt, const cv::Mat& m) {
+inline cv::Point2f TransformPoint(const cv::Point2f& pt, const cv::Mat& m) {
     CV_Assert(m.cols == 3 && m.rows == 3);
     cv::Mat_<double> pt_vec = cv::Mat_<double>(3, 1);
     pt_vec[0][0] = pt.x;

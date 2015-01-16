@@ -11,6 +11,7 @@ cv::Ptr<smc_shared_param_t> shared_data;
 
 double ParticleObservationUpdate(long t, const particle_state_t &X)
 {
+  (void)t;  // shutup gcc
   int NN = 1; // Prevent div/0
   double corr_weight = 0.0;
   for (int i = -9; i < 10; i+=2) {
@@ -26,6 +27,7 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
       }
       NN++;
       corr_weight += shared_data->obs_diff.ptr<uchar>(yy)[xx];
+      //corr_weight += 0.9 * shared_data->obs_sof.ptr<float>(yy)[xx];
     }
   }
 //  double corr_weight = cv::mean(shared_data->obs_diff(bb))[0];
@@ -49,7 +51,7 @@ void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
 {
   particle_state_t* cv_to = X.GetValuePointer();
   if (rng->Uniform(0.0, 1.0) > shared_data->prob_random_move) {
-    cv::Point2f p_stab = transformPoint(cv_to->bb.tl(), shared_data->camera_transform.inv());
+    cv::Point2f p_stab = TransformPoint(cv_to->bb.tl(), shared_data->camera_transform.inv());
     cv_to->recent_random_move = false;
     cv_to->bb.x = p_stab.x + rng->Normal(0, shared_data->mm_displacement_stddev);
     cv_to->bb.y = p_stab.y + rng->Normal(0, shared_data->mm_displacement_stddev);
@@ -219,7 +221,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
     }
   } else if (status == TRACKING_STATUS_TRACKING) {
     cv::Rect tracked_bb = tobject().latest().bb;
-    cv::Point2f p_stab = transformPoint(tracked_bb.tl(), camera_transform.inv());
+    cv::Point2f p_stab = TransformPoint(tracked_bb.tl(), camera_transform.inv());
     tracked_bb.x = p_stab.x;
     tracked_bb.y = p_stab.y;
     if (tracking_counter == 0) {

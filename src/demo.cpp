@@ -12,6 +12,7 @@
 #include "obzerver/object_tracker.hpp"
 
 void mouseCallback(int event, int x, int y, int flags, void* data) {
+  (void) flags;  // shutup gcc
   if (event == cv::EVENT_LBUTTONDOWN) {
     bool* pause = (bool*) data;
     *pause = !(*pause);
@@ -34,6 +35,10 @@ int main(int argc, char* argv[]) {
               "{ hi | history | 90 | Length of history (frames) }"
               "{ k  | skip | 0 | Starting frame }"
               "{ f  | fps | 30.0 | frames per second }"
+              "{ e  | eval | false | evaluation mode }"
+              "{ efl | decision_f_low | 1.0 | evaluation min frequency }"
+              "{ efh | decision_f_high | 4.0 | evaluation max frequency }"
+              "{ ep  | eval_file | /tmp/eval.jpg | image file to dump the decision bounding box to }"
               "{ h  | help | false | print help message }"
   );
 
@@ -54,6 +59,11 @@ int main(int argc, char* argv[]) {
   const std::size_t param_pylk_winsize = 30;
   const unsigned int param_pylk_iters = 30;
   const double param_pylk_eps = 0.01;
+
+  const bool eval_mode = cmd.get<bool>("eval");
+  const float decision_f_low = cmd.get<float>("decision_f_low");
+  const float decision_f_high = cmd.get<float>("decision_f_high");
+  const std::string eval_file = cmd.get<std::string>("eval_file");
 
   const int param_ffd_threshold = 30;
 
@@ -156,6 +166,14 @@ int main(int argc, char* argv[]) {
                     << " Periodicity:"
                     << _f;
           //LOG(INFO) << "Spectrum: " << cv::Mat(object_tracker.GetObject().GetPeriodicity().GetSpectrum(), false);
+          if (eval_mode && _f >= decision_f_low && _f <= decision_f_high)
+          {
+            cv::imwrite(eval_file,
+                        camera_tracker.GetStablizedGray()(
+                          object_tracker.GetObjectBoundingBox()).clone());
+            LOG(ERROR) << "######## DECISION MADE : " << _f;
+            break;
+          }
         }
 
 //        if (object_tracker.GetStatus() != TRACKING_STATUS_TRACKING) {
@@ -175,12 +193,14 @@ int main(int argc, char* argv[]) {
       }
 
       if (display) {
-//        cv::Mat diff_frame = camera_tracker.GetLatestDiff();
-        cv::Mat diff_frame;
-        if (object_tracker.IsTracking()) {
-          diff_frame = object_tracker.GetObject().GetSelfSimilarity().GetSimMatrixRendered();
-          cv::imwrite("data/sim.bmp", diff_frame);
-        }
+          cv::Mat diff_frame = camera_tracker.GetLatestDiff();
+          diff_frame.convertTo(diff_frame, CV_8UC1);
+//        cv::Mat diff_frame = camera_tracker.GetLatestSOF();
+//        cv::Mat diff_frame;
+//        if (object_tracker.IsTracking()) {
+//          diff_frame = object_tracker.GetObject().GetSelfSimilarity().GetSimMatrixRendered();
+//          cv::imwrite("data/sim.bmp", diff_frame);
+//        }
         cv::Mat debug_frame = camera_tracker.GetStablizedGray();
         object_tracker.DrawParticles(debug_frame);
         if (camera_tracker.GetTrackedFeaturesCurr().size()) {          
@@ -204,7 +224,8 @@ int main(int argc, char* argv[]) {
         cv::waitKey(10);
         ticker.tick("ML_Visualization");
       }
-      ticker.dump(clear);
+      LOG(INFO) << ticker.getstr(clear);
+      //ticker.dump(clear);
       while (display && pause) cv::waitKey(100);
       frame_counter++;
       ticker.reset();
@@ -212,8 +233,10 @@ int main(int argc, char* argv[]) {
   } catch (const cv::Exception& ex) {
     LOG(ERROR) << "Exception: " << ex.what();
     if (capture.isOpened()) capture.release();
-    ticker.dump();
+    LOG(INFO) << ticker.getstr(clear);
     return 1;
   }
+  if (capture.isOpened()) capture.release();
+  LOG(INFO) << ticker.getstr(clear);
   return 0;
 }
