@@ -111,8 +111,8 @@ void drawFeaturePointsTrajectory(cv::Mat& frame,
     for (unsigned int i = 0; i < points_prev.size(); i++) {
         if (outliers.data && 1 == outliers.at<uchar>(i, 0)) { // Inlier
             cv::circle(frame, points_prev.at(i), rad, CV_RGB(127, 127, 127), -1);
-            cv::circle(frame, points_cur.at(i), rad, CV_RGB(127, 127, 127), -1);
-            cv::line(frame, points_prev.at(i), points_cur.at(i), CV_RGB(127, 127, 127));
+            cv::circle(frame, points_cur.at(i), rad, CV_RGB(0, 0, 0), -1);
+            cv::line(frame, points_prev.at(i), points_cur.at(i), CV_RGB(0, 0, 0));
         } else { // Outlier
             cv::circle(frame, points_prev.at(i), rad, color_prev, -1);
             cv::circle(frame, points_cur.at(i), rad, color_cur, -1);

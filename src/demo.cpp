@@ -88,12 +88,15 @@ int main(int argc, char* argv[]) {
 
   StepBenchmarker& ticker = StepBenchmarker::GetInstance();
   cv::VideoCapture capture;
-  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
+  //cv::Ptr<cv::FeatureDetector> feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
+  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK();
+  //cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector();
   CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
   trackbar_data_t trackbar_data(&capture, &frame_counter);
   ObjectTracker object_tracker(param_num_particles, param_hist_len, fps);
 
   LOG(INFO) << "Video Source: " << video_src;
+  LOG(INFO) << "Feature Detector: " << feature_detector->name();
 
   int opengl_flags = 0;
   if (display)
@@ -209,7 +212,7 @@ int main(int argc, char* argv[]) {
                                       camera_tracker.GetTrackedFeaturesPrev(),
                                       camera_tracker.GetTrackedFeaturesCurr(),
                                       2,
-                                      CV_RGB(127,127,127), CV_RGB(255, 0, 0), CV_RGB(255, 0, 0));
+                                      CV_RGB(0,0,255), CV_RGB(255, 0, 0), CV_RGB(255, 0, 0));
         }
 
         cv::rectangle(diff_frame, cv::Rect(center.x - _w/2, center.y-_h/2, _w, _h), CV_RGB(255, 255, 255));
