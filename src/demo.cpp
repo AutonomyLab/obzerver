@@ -194,7 +194,7 @@ int main(int argc, char* argv[]) {
 
       if (display) {
           cv::Mat diff_frame = camera_tracker.GetLatestDiff();
-          diff_frame.convertTo(diff_frame, CV_8UC1);
+          diff_frame.convertTo(diff_frame, CV_8UC1, 5.0);
 //        cv::Mat diff_frame = camera_tracker.GetLatestSOF();
 //        cv::Mat diff_frame;
 //        if (object_tracker.IsTracking()) {
