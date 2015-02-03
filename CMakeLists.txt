@@ -92,7 +92,7 @@ ExternalProject_Add(libccv_project
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/libccv/lib)
 
 # We also need to take care of libccv's transitive dependencies (png, jpeg and dispatch, more might be needed)
-set(LIBS ${LIBS} "${CMAKE_CURRENT_BINARY_DIR}/src/libccv/lib/libccv.a;dispatch;jpeg;png;BlocksRuntime;gsl;gslcblas")
+set(LIBS ${LIBS} "${CMAKE_CURRENT_BINARY_DIR}/src/libccv_project/lib/libccv.a;dispatch;jpeg;png;BlocksRuntime;gsl;gslcblas")
 
 ## Debug
 
