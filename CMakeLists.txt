@@ -58,15 +58,50 @@ set(LIBS ${LIBS} ${GLOG_LIBRARIES})
 
 # -march=corei7-avx -mtune=corei7-avx -mno-avx -mno-aes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER} -std=c++0x -Wall -Wextra")
-add_subdirectory("3rdparty/smctc")
-include_directories(${smctc_SOURCE_DIR}/include)
-set(LIBS ${LIBS} "smctc")
+
+## Build and Configure External Dependencies (Modified)
+set(DEVEL_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
+message(STATUS "Devel install directory for external deps: ${DEVEL_INSTALL_DIR}")
+
+include(ExternalProject)
+ExternalProject_Add(libsmctc
+  GIT_REPOSITORY https://github.com/mani-monaj/smctc.git
+  GIT_TAG master
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+  CMAKE_ARGS
+    -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_INSTALL_PREFIX=${DEVEL_INSTALL_DIR}
+  INSTALL_COMMAND make install
+  BUILD_IN_SOURCE 0
+)
+
+include_directories(${DEVEL_INSTALL_DIR}/include)
+set(LIBS ${LIBS} "${DEVEL_INSTALL_DIR}/lib/libsmctc.so")
+
+# libccv's build system is convoluted
+ExternalProject_Add(libccv_project
+  URL https://github.com/mani-monaj/ccv-lean/archive/stable.zip
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+  CONFIGURE_COMMAND cd lib && ./configure --with-cuda=no --prefix=${DEVEL_INSTALL_DIR}
+  BUILD_COMMAND cd lib && make
+  INSTALL_COMMAND ""
+  BUILD_IN_SOURCE 1
+)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/libccv/lib)
+
+# We also need to take care of libccv's transitive dependencies (png, jpeg and dispatch, more might be needed)
+set(LIBS ${LIBS} "${CMAKE_CURRENT_BINARY_DIR}/src/libccv/lib/libccv.a;dispatch;jpeg;png;BlocksRuntime;gsl;gslcblas")
+
+## Debug
 
 message(STATUS "Libs: ${LIBS}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 
 add_library(obzerver SHARED ${obzerver_SOURCES} ${obzerver_HEADERS})
 target_link_libraries(obzerver ${LIBS})
+add_dependencies(obzerver libsmctc libccv_project)
 
 add_executable(demo src/demo.cpp)
 target_link_libraries(demo obzerver ${OpenCV_LIBS} ${GLOG_LIBRARIES})
