@@ -16,81 +16,61 @@ namespace ccv
 /*
  * Read-only access
  * No copy is performed
+ * Only grayscale and 3-channel RGB images are accepted.
  * if roi.size() > 0, performs roi extraction
+ *
+ * Very Important Note: CCV Assumes RGB byte order for 24bit images, OpenCV color images
+ * are BGR by default. It is the user's responsibility to make sure that input opencv_mat color
+ * images are converted to RGB in case before passing them to this function.
+ *
  */
-static ccv_dense_matrix_t* FromOpenCV(const cv::Mat& opencv_mat, const cv::Rect& roi = cv::Rect(0, 0, 0, 0))
-{
-  CV_Assert(opencv_mat.channels() == 1 || opencv_mat.channels() == 3);
-  CV_Assert(opencv_mat.data);
-
-  ccv_dense_matrix_t* ccv_mat = 0;
-  if (roi.area() == 0)
-  {
-    ccv_read(reinterpret_cast<const void*>(opencv_mat.data),
-             &ccv_mat,
-             (opencv_mat.channels() == 1 ? CCV_IO_GRAY_RAW : CCV_IO_RGB_RAW) | CCV_IO_NO_COPY,
-             opencv_mat.rows,
-             opencv_mat.cols,
-             opencv_mat.cols * opencv_mat.elemSize());
-  }
-  else
-  {
-    // ptr(row, col)
-    CV_Assert(roi.x >= 0 && roi.y >= 0 && roi.x < opencv_mat.cols && roi.y < opencv_mat.rows);
-    ccv_read(reinterpret_cast<const void*>(opencv_mat.ptr(roi.y, roi.x)),
-             &ccv_mat,
-             (opencv_mat.channels() == 1 ? CCV_IO_GRAY_RAW : CCV_IO_RGB_RAW) | CCV_IO_NO_COPY,
-             roi.height,
-             roi.width,
-             opencv_mat.cols * opencv_mat.elemSize());
-  }
-  return ccv_mat;
-}
+ccv_dense_matrix_t* FromOpenCV(const cv::Mat& opencv_mat, const cv::Rect& roi = cv::Rect(0, 0, 0, 0));
 
 // Base class to enable/disable ccv_cache
-class CCVBase
+class CommonBase
 {
 private:
   static bool inited_;
 public:
-  CCVBase();
-  ~CCVBase();
+  CommonBase();
+  ~CommonBase();
 };
 
-class CCV_ICF: public CCVBase
+class ICFCascadeClassifier: public CommonBase
 {
 protected:
   std::string cascade_file_;
   ccv_icf_classifier_cascade_t* cascade_ptr_;
   ccv_icf_param_t cascade_params_;
 public:
-  struct CCV_Result
+  struct result_t
   {
     cv::Rect bb;
     float confidence;
     std::size_t neighbors;
-    CCV_Result(const cv::Rect& bb_, const float confidence_, const std::size_t& neighbors_)
+    result_t(const cv::Rect& bb_, const float confidence_, const std::size_t& neighbors_)
       : bb(bb_), confidence(confidence_), neighbors(neighbors_) {;}
   };
 
   // Default values from ccv_icf.c
-  CCV_ICF(
+  ICFCascadeClassifier(
       const std::string& cascade_file,
       const std::int32_t min_neighbors = 2,
       const std::int32_t step_through = 2,
       const std::int32_t interval = 8,
       const float threshold = 0.0);
 
-  ~CCV_ICF();
+  ~ICFCascadeClassifier();
   void SetParams(
       const std::int32_t min_neighbors,
       const std::int32_t step_through,
       const std::int32_t interval,
       const float threshold);
 
-  std::size_t Detect(const cv::Mat& frame,
-                     std::vector<CCV_Result>& result,
-                     const cv::Rect& roi = cv::Rect(0, 0, 0, 0));
+  std::size_t Detect(
+      const cv::Mat& frame,
+      std::vector<result_t>& result,
+      const cv::Rect& roi = cv::Rect(0, 0, 0, 0));
 };
 
 }  // namespace ccv

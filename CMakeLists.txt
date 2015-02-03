@@ -109,6 +109,9 @@ add_dependencies(obzerver libsmctc libccv_project)
 add_executable(demo src/demo.cpp)
 target_link_libraries(demo obzerver ${OpenCV_LIBS} ${GLOG_LIBRARIES})
 
+add_executable(ccv_demo src/ccv_demo.cpp)
+target_link_libraries(ccv_demo obzerver ${OpenCV_LIBS} ${GLOG_LIBRARIES})
+
 if(WITH_TESTS)
     add_subdirectory(test)
     enable_testing()
