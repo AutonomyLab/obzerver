@@ -240,6 +240,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   if (capture.isOpened()) capture.release();
-  LOG(INFO) << ticker.getstr(clear);
+  LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
   return 0;
 }
