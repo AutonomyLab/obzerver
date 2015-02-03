@@ -236,7 +236,7 @@ int main(int argc, char* argv[]) {
   } catch (const cv::Exception& ex) {
     LOG(ERROR) << "Exception: " << ex.what();
     if (capture.isOpened()) capture.release();
-    LOG(INFO) << ticker.getstr(clear);
+    LOG(INFO) << "Timing info\n" << ticker.getstr(clear);
     return 1;
   }
   if (capture.isOpened()) capture.release();

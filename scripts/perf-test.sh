@@ -36,5 +36,6 @@ mkdir result
 for file in *.avi
 do
   echo "Processing $file ..."
-  ./obzerver/build/demo --fps=29.97 -v $file -l ./log/$file.log 1>&2 2>./result/$file.txt
+  ./obzerver/build/demo --fps=29.97 -v $file -l ./log/$file.log 1>&2 2>/dev/null
+  fgrep "(ms)" ./log/$file.log > ./result/$file.txt
 done
