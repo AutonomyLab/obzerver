@@ -44,5 +44,8 @@ echo "Generating Results ..."
 cd log
 for file in *
 do
-  fgrep "(ms)" $file > ../result/`basename $file`.txt
+  # ignore symlinks
+  test -h $file || fgrep "(ms)" $file > ../result/`basename $file`.txt
 done
+
+echo "Results in: $TMP_DIR/result"
