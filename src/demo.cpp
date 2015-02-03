@@ -227,7 +227,7 @@ int main(int argc, char* argv[]) {
         cv::waitKey(10);
         ticker.tick("ML_Visualization");
       }
-      LOG(INFO) << ticker.getstr(clear);
+      LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
       //ticker.dump(clear);
       while (display && pause) cv::waitKey(100);
       frame_counter++;
@@ -236,10 +236,10 @@ int main(int argc, char* argv[]) {
   } catch (const cv::Exception& ex) {
     LOG(ERROR) << "Exception: " << ex.what();
     if (capture.isOpened()) capture.release();
-    LOG(INFO) << "Timing info\n" << ticker.getstr(clear);
+    LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
     return 1;
   }
   if (capture.isOpened()) capture.release();
-  LOG(INFO) << ticker.getstr(clear);
+  LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
   return 0;
 }

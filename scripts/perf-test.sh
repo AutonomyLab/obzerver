@@ -37,5 +37,15 @@ for file in *.avi
 do
   echo "Processing $file ..."
   ./obzerver/build/demo --fps=29.97 -v $file -l ./log/$file.log 1>&2 2>/dev/null
-  fgrep "(ms)" ./log/$file.log > ./result/$file.txt
 done
+
+echo "Generating Results ..."
+
+cd log
+for file in *
+do
+  # ignore symlinks
+  test -h $file || fgrep "(ms)" $file > ../result/`basename $file`.txt
+done
+
+echo "Results in: $TMP_DIR/result"
