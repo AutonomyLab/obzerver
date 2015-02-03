@@ -19,6 +19,7 @@ set(obzerver_SOURCES
     src/fft.cpp
     src/tobject.cpp
     src/logger.cpp
+    src/ccv_wrapper.cpp
 )
 
 set(obzerver_HEADERS
@@ -32,6 +33,7 @@ set(obzerver_HEADERS
     include/obzerver/tobject.hpp
     include/obzerver/logger.hpp
     include/obzerver/opencv3-backport/shift.hpp
+    include/obzerver/ccv_wrapper.hpp
 )
 
 if(USE_CUSTOM_OPENCV)
@@ -51,7 +53,7 @@ if(OpenCV_FOUND)
     #message(STATUS ${LIBS})
 endif(OpenCV_FOUND)
 
-# glog debian package is available only on Ubuntu Trusy+
+## glog debian package is available only on Ubuntu Trusy+
 pkg_check_modules(GLOG REQUIRED libglog)
 include_directories(${GLOG_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${GLOG_LIBRARIES})
@@ -89,7 +91,7 @@ ExternalProject_Add(libccv_project
   BUILD_IN_SOURCE 1
 )
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/libccv/lib)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/libccv_project/lib)
 
 # We also need to take care of libccv's transitive dependencies (png, jpeg and dispatch, more might be needed)
 set(LIBS ${LIBS} "${CMAKE_CURRENT_BINARY_DIR}/src/libccv_project/lib/libccv.a;dispatch;jpeg;png;BlocksRuntime;gsl;gslcblas")
@@ -99,7 +101,8 @@ set(LIBS ${LIBS} "${CMAKE_CURRENT_BINARY_DIR}/src/libccv_project/lib/libccv.a;di
 message(STATUS "Libs: ${LIBS}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 
-add_library(obzerver SHARED ${obzerver_SOURCES} ${obzerver_HEADERS})
+# Since libccv is a static library, wee need to compile obzerver as static as well
+add_library(obzerver STATIC ${obzerver_SOURCES} ${obzerver_HEADERS})
 target_link_libraries(obzerver ${LIBS})
 add_dependencies(obzerver libsmctc libccv_project)
 
