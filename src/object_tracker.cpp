@@ -16,8 +16,8 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
   double corr_weight = 0.0;
   for (int i = -9; i < 10; i+=2) {
     for (int j = -9; j < 10; j+=2) {
-      int xx = (int) round(X.bb.tl().x) - i;
-      int yy = (int) round(X.bb.tl().y) - j;
+      const int xx = (int) round(X.bb.tl().x) - i;
+      const int yy = (int) round(X.bb.tl().y) - j;
       if (xx < shared_data->crop ||
           yy < shared_data->crop ||
           xx > (shared_data->obs_diff.cols - shared_data->crop) ||
@@ -51,10 +51,10 @@ void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
 {
   particle_state_t* cv_to = X.GetValuePointer();
   if (rng->Uniform(0.0, 1.0) > shared_data->prob_random_move) {
-    cv::Point2f p_stab = TransformPoint(cv_to->bb.tl(), shared_data->camera_transform.inv());
+    const cv::Point2f& p_stab = TransformPoint(cv_to->bb.tl(), shared_data->camera_transform.inv());
     cv_to->recent_random_move = false;
-    cv_to->bb.x = p_stab.x + rng->Normal(0, shared_data->mm_displacement_stddev);
-    cv_to->bb.y = p_stab.y + rng->Normal(0, shared_data->mm_displacement_stddev);
+    cv_to->bb.x = rng->Normal(p_stab.x, shared_data->mm_displacement_stddev);
+    cv_to->bb.y = rng->Normal(p_stab.y, shared_data->mm_displacement_stddev);
   } else {
     cv_to->recent_random_move = true;
     cv_to->bb.x = rng->Uniform(shared_data->crop, shared_data->obs_diff.cols - shared_data->crop);
@@ -93,8 +93,8 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   shared_data->prob_random_move = prob_random_move;
   shared_data->mm_displacement_stddev = mm_displacement_noise_stddev;
 
-  //sampler.SetResampleParams(SMC_RESAMPLE_SYSTEMATIC, 0.5);
-  sampler.SetResampleParams(SMC_RESAMPLE_STRATIFIED, 2000);
+  sampler.SetResampleParams(SMC_RESAMPLE_STRATIFIED, 0.99);
+  //sampler.SetResampleParams(SMC_RESAMPLE_STRATIFIED, 2000);
   sampler.SetMoveSet(moveset);
   sampler.Initialise();
 

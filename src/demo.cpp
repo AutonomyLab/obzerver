@@ -88,8 +88,8 @@ int main(int argc, char* argv[]) {
 
   StepBenchmarker& ticker = StepBenchmarker::GetInstance();
   cv::VideoCapture capture;
-  //cv::Ptr<cv::FeatureDetector> feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
-  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK();
+  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
+  //cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK();
   //cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector();
   CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
   trackbar_data_t trackbar_data(&capture, &frame_counter);
