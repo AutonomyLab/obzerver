@@ -80,6 +80,7 @@ int main(int argc, char* argv[]) {
       }
   }
 
+  cv::Rect roi(0, 200, 200, 200);
   std::int32_t ret_value = 0;
   std::vector<ccv::ICFCascadeClassifier::result_t> icf_result_vec;
   try
@@ -112,13 +113,14 @@ int main(int argc, char* argv[]) {
       }
 
       icf_result_vec.clear();
-      const std::size_t num_objects = icf.Detect(frame, icf_result_vec);
+      const std::size_t num_objects = icf.Detect(frame, icf_result_vec, roi);
       ticker.tick("ML_ICF");
 
       LOG(INFO) << "Number of Objects: " << num_objects;
 
       if (display)
       {
+        cv::rectangle(frame, roi, cv::Scalar(0, 0, 0));
         for (std::size_t i = 0; i < icf_result_vec.size(); i++)
         {
           cv::rectangle(frame, icf_result_vec[i].bb, cv::Scalar(0, 0, 0));

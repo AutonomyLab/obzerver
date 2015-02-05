@@ -1,5 +1,6 @@
 #include "obzerver/ccv_wrapper.hpp"
 #include <exception>
+#include <cassert>
 
 namespace ccv
 {
@@ -35,16 +36,24 @@ ccv_dense_matrix_t* FromOpenCV(const cv::Mat& opencv_mat, const cv::Rect& roi)
 
 // CCV Base Class
 
-bool CommonBase::inited_ = false;
+std::size_t CommonBase::ref_count_ = 0;
 
 CommonBase::CommonBase()
 {
-  if (!inited_) ccv_enable_default_cache();
+  if (ref_count_ == 0)
+  {
+    ccv_enable_default_cache();
+  }
+  ref_count_++;
 }
 
 CommonBase::~CommonBase()
 {
-  if (inited_) ccv_disable_cache();
+  ref_count_--;
+  if (ref_count_ == 0)
+  {
+    ccv_disable_cache();
+  }
 }
 
 // CCV ICF
@@ -68,7 +77,11 @@ ICFCascadeClassifier::ICFCascadeClassifier(
 
 ICFCascadeClassifier::~ICFCascadeClassifier()
 {
-  if (cascade_ptr_) ccv_icf_classifier_cascade_free(cascade_ptr_);
+  if (cascade_ptr_ != 0)
+  {
+    ccv_icf_classifier_cascade_free(cascade_ptr_);
+    cascade_ptr_ = 0;
+  }
 }
 
 void ICFCascadeClassifier::SetParams(
@@ -84,6 +97,10 @@ void ICFCascadeClassifier::SetParams(
   cascade_params_.flags = 0;
 }
 
+/*
+ * Resulting bounding boxes are always in image coordinate system
+ * TODO: Add safety checks
+ **/
 std::size_t ICFCascadeClassifier::Detect(const cv::Mat &frame, std::vector<result_t> &result, const cv::Rect &roi)
 {
   ccv_dense_matrix_t* ccv_frame = ccv::FromOpenCV(frame, roi);
@@ -94,7 +111,8 @@ std::size_t ICFCascadeClassifier::Detect(const cv::Mat &frame, std::vector<resul
   for (std::int32_t i = 0; i < objects->rnum; i++)
   {
     ccv_comp_t* obj = reinterpret_cast<ccv_comp_t*>(ccv_array_get(objects, i));
-    result.push_back(result_t(cv::Rect(obj->rect.x, obj->rect.y, obj->rect.width, obj->rect.height),
+    result.push_back(result_t(cv::Rect(
+                                obj->rect.x + roi.x, obj->rect.y + roi.y, obj->rect.width, obj->rect.height),
                                 obj->classification.confidence,
                                 obj->neighbors));
   }

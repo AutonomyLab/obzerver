@@ -27,13 +27,19 @@ namespace ccv
 ccv_dense_matrix_t* FromOpenCV(const cv::Mat& opencv_mat, const cv::Rect& roi = cv::Rect(0, 0, 0, 0));
 
 // Base class to enable/disable ccv_cache
+// This class is non-copyable to reduce the hassle of wrapping a c
+// library that does explicit memory management
 class CommonBase
 {
 private:
-  static bool inited_;
+  static std::size_t ref_count_;
 public:
   CommonBase();
   ~CommonBase();
+
+  // non-copyable class c++11
+  explicit CommonBase(const CommonBase& rhs) = delete;
+  CommonBase& operator=(const CommonBase& rhs) = delete;
 };
 
 class ICFCascadeClassifier: public CommonBase
