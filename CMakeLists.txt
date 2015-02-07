@@ -50,6 +50,7 @@ if(OpenCV_FOUND)
     include_directories(${OpenCV_INCLUDE_DIRS})
     set(LIBS ${LIBS} ${OpenCV_LIBS})
     message(STATUS "OpenCV include dir: ${OpenCV_INCLUDE_DIRS}")
+    message(STATUS "OpenCV CXXFLAGS: ${OpenCV_CXXFLAGS_OTHER}")
     #message(STATUS ${LIBS})
 endif(OpenCV_FOUND)
 
@@ -59,13 +60,18 @@ include_directories(${GLOG_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${GLOG_LIBRARIES})
 
 # -march=corei7-avx -mtune=corei7-avx -mno-avx -mno-aes
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER} -std=c++0x -Wall -Wextra")
+# -fopenmp is because of upstram dbscan, fix it
+set(CMAKE_OPT_FLAGS "-march=native -ffast-math -funroll-loops")
+set(CMAKE_CXX_FLAGS "${CMAKE_OPT_FLAGS} ${CMAKE_CXX_FLAGS} ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER} -std=c++0x -Wall -Wextra -fopenmp -march=native")
 
 ## Build and Configure External Dependencies (Modified)
+include(ExternalProject)
 set(DEVEL_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
+include_directories(${DEVEL_INSTALL_DIR}/include)
+
 message(STATUS "Devel install directory for external deps: ${DEVEL_INSTALL_DIR}")
 
-include(ExternalProject)
+# libsmctc
 ExternalProject_Add(libsmctc
   GIT_REPOSITORY https://github.com/mani-monaj/smctc.git
   GIT_TAG master
@@ -78,8 +84,24 @@ ExternalProject_Add(libsmctc
   BUILD_IN_SOURCE 0
 )
 
-include_directories(${DEVEL_INSTALL_DIR}/include)
 set(LIBS ${LIBS} "${DEVEL_INSTALL_DIR}/lib/libsmctc.so")
+
+# dbscan
+ExternalProject_Add(libdbscan_project
+  GIT_REPOSITORY https://github.com/mani-monaj/DBSCAN.git
+  GIT_TAG master
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+  CMAKE_ARGS
+    -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_INSTALL_PREFIX=${DEVEL_INSTALL_DIR}
+    -DBUILD_PYTHONLIB=OFF
+    -DWITH_OPENMP=ON
+  INSTALL_COMMAND make install
+  BUILD_IN_SOURCE 0
+)
+
+set(LIBS ${LIBS} "${DEVEL_INSTALL_DIR}/lib/libdbscan.so")
 
 # libccv's build system is convoluted
 ExternalProject_Add(libccv_project
@@ -104,7 +126,7 @@ message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 # Since libccv is a static library, wee need to compile obzerver as static as well
 add_library(obzerver STATIC ${obzerver_SOURCES} ${obzerver_HEADERS})
 target_link_libraries(obzerver ${LIBS})
-add_dependencies(obzerver libsmctc libccv_project)
+add_dependencies(obzerver libsmctc libccv_project libdbscan_project)
 
 add_executable(demo src/demo.cpp)
 target_link_libraries(demo obzerver ${OpenCV_LIBS} ${GLOG_LIBRARIES})

@@ -77,6 +77,8 @@ public:
       const cv::Mat& frame,
       std::vector<result_t>& result,
       const cv::Rect& roi = cv::Rect(0, 0, 0, 0));
+
+  const std::string& GetCascadeFile() const {return cascade_file_;}
 };
 
 }  // namespace ccv

@@ -7,6 +7,8 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/ml/ml.hpp"
 
+#include <map>
+
 cv::Ptr<smc_shared_param_t> shared_data;
 
 double ParticleObservationUpdate(long t, const particle_state_t &X)
@@ -33,7 +35,7 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
 //  double corr_weight = cv::mean(shared_data->obs_diff(bb))[0];
   //corr_weight = (fabs(corr_weight > 1e-6)) ? log(corr_weight/NN) : -13.0;
   corr_weight = (fabs(corr_weight > 1e-6)) ? (corr_weight/(float(NN) * 512.0)) : 1e-6;
-  //OG(INFO) << corr_weight;
+//  LOG(INFO) << corr_weight;
   return log(corr_weight);
 }
 
@@ -68,6 +70,7 @@ void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
 ObjectTracker::ObjectTracker(const std::size_t num_particles,
                              const std::size_t hist_len,
                              const float fps,
+                             ccv::ICFCascadeClassifier *icf_classifier,
                              const unsigned short int crop,
                              const double prob_random_move,
                              const double mm_displacement_noise_stddev)
@@ -84,6 +87,9 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   tracking_counter(0),
   num_clusters(0),
   clustering_err_threshold(100),
+  pts(num_particles, 2),
+  dbs(0.01, 10, 1),
+  icf_classifier_(icf_classifier),
   tobject(hist_len, fps),
   ticker(StepBenchmarker::GetInstance())
 {
@@ -99,10 +105,116 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   sampler.Initialise();
 
   LOG(INFO) << "[OT] Initialized object tracker with " << num_particles << " particles.";
+  if (icf_classifier_ != 0)
+  {
+    LOG(INFO) << "[OT] Using cascade classifier: " << icf_classifier_->GetCascadeFile();
+  }
+  else
+  {
+    LOG(INFO) << "[OT] No cascade support";
+  }
 }
 
 ObjectTracker::~ObjectTracker() {
   ;
+}
+
+
+bool ObjectTracker::Update2(const cv::Mat& img_stab, const cv::Mat &img_diff, const cv::Mat &img_sof, const cv::Mat &camera_transform, const cv::Mat& img_rgb)
+{
+  CV_Assert(img_diff.channels() == 1);
+  // This is only shallow copy O(1)
+  shared_data->obs_diff = img_diff;
+  shared_data->obs_sof = img_sof;
+  shared_data->camera_transform = camera_transform;
+
+  sampler.Iterate();
+  ticker.tick("OT_Particle_Filter");
+
+  for (long int i = 0; i < sampler.GetNumber(); i++)
+  {
+    const particle_state_t& p = sampler.GetParticleValue(i);
+    pts(i, 0) = -1.0 + (p.bb.x / 480.0);
+    pts(i, 1) = -1.0 + (p.bb.y / 270.0);
+  }
+  ticker.tick("OT_Particles_to_Mat");
+//  LOG(INFO) << "Size of matrix is: " << pts.size1() << " x " << pts.size2();
+
+  dbs.init(0.02, num_particles / 20, 4);
+  dbs.reset();
+  dbs.fit(pts);
+  ticker.tick("OT_Clustering");
+
+  CV_Assert(dbs.get_labels().size() == num_particles);
+
+  const clustering::DBSCAN::Labels& cluster_labels = dbs.get_labels();
+  num_clusters = 0;
+  motion_clusters_.clear();
+  for (std::size_t i = 0; i < cluster_labels.size(); i++)
+  {
+    const std::int32_t cid = cluster_labels[i];
+    const particle_state_t& p = sampler.GetParticleValue(i);
+
+    if (cid == -1) continue;
+    if (motion_clusters_.count(cid) == 0)
+    {
+      motion_clusters_.insert(std::pair<int32_t, cv::Rect>(cid, cv::Rect(p.bb.x, p.bb.y, 0, 0)));
+      num_clusters++;
+    }
+    cv::Rect& r = motion_clusters_[cid];
+
+    if (p.bb.x < r.x)  // grow left
+    {
+      r.x = p.bb.x;
+      r.width = r.x - r.br().x;
+    }
+    else if (p.bb.x > r.br().x) // grow right
+    {
+      r.width = p.bb.x - r.x;
+    }
+
+    if (p.bb.y < r.y)  // grow top
+    {
+      r.y = p.bb.y;
+      r.height = r.y - r.br().y;
+    }
+    else if (p.bb.y > r.br().y) // grow bottom
+    {
+      r.height = p.bb.y - r.y;
+    }
+
+//    r.x = std::min(static_cast<std::int32_t>(round(p.bb.tl().x)), r.x);
+//    r.width = std::max(static_cast<std::int32_t>(round(p.bb.br().x)), r.x) - r.x;
+//    r.y = std::min(static_cast<std::int32_t>(round(p.bb.tl().y)), r.y);
+//    r.height = std::max(static_cast<std::int32_t>(round(p.bb.br().y)), r.y) - r.y;
+  }
+
+  CV_Assert(num_clusters == motion_clusters_.size());
+  ticker.tick("OT_Clustering_BB");
+  LOG(INFO) << "Number of clusters: " << num_clusters;
+
+  object_bbs_.clear();
+  if (icf_classifier_)
+  {
+    std::vector<ccv::ICFCascadeClassifier::result_t> icf_result_vec;
+    for (std::size_t i = 0; i < num_clusters; i++)
+    {
+      if (motion_clusters_[i].area() <= 0.0) continue;
+      icf_result_vec.clear();
+      const std::size_t num_det_objects = icf_classifier_->Detect(img_rgb, icf_result_vec, motion_clusters_[i]);
+      for (std::size_t j = 0; j < num_det_objects; j++)
+      {
+        object_bbs_.push_back(icf_result_vec[i].bb);
+      }
+      LOG(INFO) << "Cluster #" << i << " : " << icf_result_vec.size();
+    }
+    ticker.tick("OT_ICF");
+  }
+
+  // Let's filter out the BBs using object detection
+  tobject.Reset();
+  status = TRACKING_STATUS_LOST;
+  return false;
 }
 
 bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, const cv::Mat &img_sof, const cv::Mat &camera_transform)
@@ -133,16 +245,19 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
 
   //std::vector<cv::Point2f> pts(sampler.GetNumber());
 
+#define _DBSCAN_
+
+#ifdef _EM_
   std::vector<cv::Point2f> pts;
   std::vector<cv::Point2f> pts_w;
   for (long i = 0; i < sampler.GetNumber(); i++) {
-    const particle_state_t p = sampler.GetParticleValue(i);
-    const double w = sampler.GetParticleWeight(i);
+    const particle_state_t& p = sampler.GetParticleValue(i);
+    const double w = sampler.GetParticleLogWeight(i);
     if (false == p.recent_random_move) {
       //pts[i] = p.bb.tl();
       pts.push_back(p.bb.tl());
       pts_w.push_back(cv::Point2f(w, w));
-      //LOG(INFO) << i << " " << p.bb << " " << w << " " << pts.back();
+      LOG(INFO) << p.bb.tl().x << "," << p.bb.tl().y << "," << w;
     }
   }
 
@@ -155,7 +270,20 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   particles_pose = particles_pose.reshape(1);
 
   ticker.tick("OT_Particles_to_Mat");
+#endif
 
+#if 1
+  //clustering::DBSCAN::ClusterData pts(sampler.GetNumber(), 2);
+  for (long int i = 0; i < sampler.GetNumber(); i++)
+  {
+    const particle_state_t& p = sampler.GetParticleValue(i);
+    pts(i, 0) = -1.0 + (p.bb.x / 480.0);
+    pts(i, 1) = -1.0 + (p.bb.y / 270.0);
+//    LOG(INFO) << i << "," << pts(i, 0) << "," << pts(i, 1);
+  }
+  ticker.tick("OT_Particles_to_Mat");
+  LOG(INFO) << "Size of matrix is: " << pts.size1() << " x " << pts.size2();
+#endif
 //  cv::Mat particles_mask = cv::Mat::zeros(img_stab.size(), CV_8UC1);
 //  for (std::size_t i = 0; i < pts.size(); i++) {
 //    cv::rectangle(particles_mask, cv::Rect(pts[i], cv::Size(5,5)), cv::Scalar(255, 255, 255));
@@ -163,9 +291,11 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
 //  cv::bitwise_and(img_stab, particles_mask, particles_mask);
 //  ticker.tick("  [OT] Particles Mask");
 
+#ifdef _EM_
   unsigned short int k = 0;
   double err = 1e12;
-  std::vector<cv::Mat> vec_cov;
+  vec_cov.clear();
+  // 4 is the maximum number of clusters
   for (k = 1; k < 4 && err > clustering_err_threshold; k++) {
     cv::EM em_estimator(k,
                         cv::EM::COV_MAT_DIAGONAL,
@@ -175,13 +305,14 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
 
     centers = em_estimator.get<cv::Mat>("means");
     vec_cov = em_estimator.get<std::vector<cv::Mat> >("covs");
-//    LOG(INFO) << "EM k: " << k;
     err = 0.0;
+    // Is vec_cov.size() == k??
     for (std::size_t c = 0; c < vec_cov.size(); c++) {
       err += (sqrt(vec_cov[c].at<double>(0,0)) + sqrt(vec_cov[c].at<double>(1,1)));
 //      LOG(INFO) << "-- " << c << " : " << centers.row(c) << " " << err;//vec_cov[c];
     }
     err /= double(k);
+    LOG(INFO) << ">>>> #" << k << " : " << err;
 //    err = cv::kmeans(particles_pose, // Only on positions
 //                     k,
 //                     labels,
@@ -193,24 +324,38 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   }
   if (err <= clustering_err_threshold) {
     num_clusters = k - 1;
-    LOG(INFO) << "[OT]  Particles: "<< particles_pose.rows << " Number of clusers in particles: " << num_clusters << " Centers" << centers << " err: " << err;
+    LOG(INFO) << "[OT]  Particles: " << particles_pose.rows << " Number of clusers in particles: " << num_clusters << " Centers" << centers << " err: " << err;
   } else {
     num_clusters = 0;
-    LOG(WARNING) << "[OT]  Clustering failed. Particles are very sparse.";
+    LOG(WARNING) << "[OT]  Clustering failed. Particles are very sparse " << err;
   }
 
   ticker.tick("OT_Clustering");
+#endif
 
+#if 1
+  //clustering::DBSCAN dbs(0.01, 10, 4);
+  dbs.init(0.01, 10, 4);
+  dbs.reset();
+  dbs.fit(pts);
+  ticker.tick("OT_Clustering");
+  LOG(INFO) << "*********** LABELS: " << dbs.get_labels().size();
+  LOG(INFO) << dbs;
+#endif
   if (status == TRACKING_STATUS_LOST) {
     if (num_clusters != 1) {
       LOG(INFO) << "[OT]  Waiting for first dense cluser ...";
     } else {
       // All pts are condensed enough to form a bounding box     
-      cv::Rect new_bb = GenerateBoundingBox(pts,
-                                            cv::Point2f(centers.at<double>(0,0), centers.at<double>(0, 1)),
-                                            vec_cov[0].at<double>(0,0),
-                                            vec_cov[0].at<double>(1,1),
-                                            5.0, 100.0, img_diff.cols, img_diff.rows);
+      // MANI
+      cv::Rect new_bb;
+//      cv::Rect new_bb = GenerateBoundingBox(pts,
+//                                            cv::Point2f(
+//                                              centers.at<double>(0,0),
+//                                              centers.at<double>(0, 1)),
+//                                            vec_cov[0].at<double>(0,0),
+//                                            vec_cov[0].at<double>(1,1),
+//                                            5.0, 100.0, img_diff.cols, img_diff.rows);
       if (new_bb.area() > 0) {
         tobject.Update(img_stab, new_bb, true);
         status = TRACKING_STATUS_TRACKING;
@@ -221,7 +366,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
     }
   } else if (status == TRACKING_STATUS_TRACKING) {
     cv::Rect tracked_bb = tobject().latest().bb;
-    cv::Point2f p_stab = TransformPoint(tracked_bb.tl(), camera_transform.inv());
+    const cv::Point2f& p_stab = TransformPoint(tracked_bb.tl(), camera_transform.inv());
     tracked_bb.x = p_stab.x;
     tracked_bb.y = p_stab.y;
     if (tracking_counter == 0) {
@@ -253,19 +398,25 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
         tracking_counter--;
       }
       if  (min_dist < 200) {
-        for (unsigned int i = 0; i < pts.size(); i++) {
-            if (labels.at<int>(i) == min_dist_cluster) {
-                cluster.push_back(pts.at(i));
-                cluster_w.push_back(pts_w.at(i));
-            }
-        }
+        // Mani
+//        for (unsigned int i = 0; i < pts.size1(); i++) {
+//            if (labels.at<int>(i) == min_dist_cluster) {
+//                cluster.push_back(pts.at(i));
+//                cluster_w.push_back(pts_w.at(i));
+//            }
+//        }
         //LOG(INFO) << "Subset size: " << cluster.size() << std::endl;
         //LOG(INFO) << "Coovariance: " << vec_cov[min_dist_cluster];
-        bb = GenerateBoundingBox(cluster,
-                                 cv::Point2f(centers.at<double>(min_dist_cluster,0), centers.at<double>(min_dist_cluster, 1)),
-                                 vec_cov[min_dist_cluster].at<double>(0,0),
-                                 vec_cov[min_dist_cluster].at<double>(1,1),
-                                 5.0, 100, img_diff.cols, img_diff.rows);
+
+        // MANI
+
+//        bb = GenerateBoundingBox(cluster,
+//                                 cv::Point2f(
+//                                   centers.at<double>(min_dist_cluster,0),
+//                                   centers.at<double>(min_dist_cluster, 1)),
+//                                 vec_cov[min_dist_cluster].at<double>(0,0),
+//                                 vec_cov[min_dist_cluster].at<double>(1,1),
+//                                 5.0, 100, img_diff.cols, img_diff.rows);
 
         tracking_counter = 15;
       } else {
@@ -382,11 +533,23 @@ void ObjectTracker::DrawParticles(cv::Mat &img)
       cv::circle(img, sampler.GetParticleValue(i).bb.tl(), std::max(0.0, sampler.GetParticleWeight(i)), cv::Scalar(0, 0, 0), -1);
   }
 
-  for (int i = 0; i < num_clusters; i++) {
-    const cv::Point2f pt(centers.at<double>(i,0), centers.at<double>(i,1));
-    cv::circle(img, pt, 10, cv::Scalar(255, 255, 255));
-    //cv::circle(img, centers.at<cv::Point2f>(i), 10, cv::Scalar(255, 255, 255));
+  for (auto &bb: motion_clusters_)
+  {
+    LOG(INFO) << bb.first << " : " << bb.second;
+    cv::rectangle(img, bb.second, cv::Scalar(255, 255, 255));
   }
+
+  for (auto &bb: object_bbs_)
+  {
+    cv::rectangle(img, bb, cv::Scalar(50, 50, 50));
+  }
+//  for (int i = 0; i < num_clusters; i++) {
+//    const cv::Point2f pt(centers.at<double>(i,0), centers.at<double>(i,1));
+
+//    const double err = sqrt(vec_cov[i].at<double>(0,0)) + sqrt(vec_cov[i].at<double>(1,1));
+//    cv::circle(img, pt, err, cv::Scalar(255, 255, 255));
+//    //cv::circle(img, centers.at<cv::Point2f>(i), 10, cv::Scalar(255, 255, 255));
+//  }
 
   if (status != TRACKING_STATUS_LOST) {
     cv::rectangle(img, GetObjectBoundingBox(), cv::Scalar(127, 127, 127), 5);

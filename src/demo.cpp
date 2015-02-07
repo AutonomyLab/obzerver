@@ -25,8 +25,9 @@ int main(int argc, char* argv[]) {
 
   cv::CommandLineParser cmd(argc, argv,
               "{ v  | video | | specify video file}"
+              "{ c  | cascade | | specify icf cascade file}"
               "{ d  | display | false | Show visualization }"
-              "{ c  | clear | false | Clear Terminal }"
+              "{ cl  | clear | false | Clear Terminal }"
               "{ p  | pause | false | Start in pause mode }"
               "{ ds | downsample | 1.0 | downsample (resize) factor (0.5: half) }"
               "{ l  | logfile | | specify log file (empty: log to stderr)}"
@@ -45,6 +46,7 @@ int main(int argc, char* argv[]) {
   /* Params and Command Line */
 
   const std::string video_src = cmd.get<std::string>("video");
+  const std::string cascade_src = cmd.get<std::string>("cascade");
   const bool display = cmd.get<bool>("display");
   const bool clear = cmd.get<bool>("clear");
   const float downsample_factor = cmd.get<float>("downsample");
@@ -89,14 +91,32 @@ int main(int argc, char* argv[]) {
   StepBenchmarker& ticker = StepBenchmarker::GetInstance();
   cv::VideoCapture capture;
   cv::Ptr<cv::FeatureDetector> feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
+
+  cv::Ptr<ccv::ICFCascadeClassifier> ccv_icf_ptr = 0;
   //cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK();
   //cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector();
   CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
   trackbar_data_t trackbar_data(&capture, &frame_counter);
-  ObjectTracker object_tracker(param_num_particles, param_hist_len, fps);
 
   LOG(INFO) << "Video Source: " << video_src;
   LOG(INFO) << "Feature Detector: " << feature_detector->name();
+
+  if (!cascade_src.empty())
+  {
+    LOG(INFO) << "Cascade File: " << cascade_src;
+    try
+    {
+      ccv_icf_ptr = new ccv::ICFCascadeClassifier(cascade_src);
+    }
+    catch (const std::exception& e)
+    {
+      LOG(ERROR) << "Initializing cascade classifier failed: " << e.what();
+      ccv_icf_ptr = 0;
+    }
+  }
+
+  ObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
+
 
   int opengl_flags = 0;
   if (display)
@@ -155,10 +175,11 @@ int main(int argc, char* argv[]) {
         LOG(WARNING) << "Camera Tracker Failed";
         // TODO
       } else {
-        object_tracker.Update(camera_tracker.GetStablizedGray(), // TODO
+        object_tracker.Update2(camera_tracker.GetStablizedGray(), // TODO
                               camera_tracker.GetLatestDiff(),
                               camera_tracker.GetLatestSOF(),
-                              camera_tracker.GetLatestCameraTransform());
+                              camera_tracker.GetLatestCameraTransform(),
+                              camera_tracker.GetStablizedRGB());
 
 
         LOG(INFO) << "Tracking status: " << object_tracker.GetStatus();

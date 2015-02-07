@@ -2,6 +2,8 @@
 #include <exception>
 #include <cassert>
 
+#include <glog/logging.h>
+
 namespace ccv
 {
 
@@ -78,7 +80,7 @@ ICFCascadeClassifier::ICFCascadeClassifier(
 ICFCascadeClassifier::~ICFCascadeClassifier()
 {
   if (cascade_ptr_ != 0)
-  {
+  {    
     ccv_icf_classifier_cascade_free(cascade_ptr_);
     cascade_ptr_ = 0;
   }

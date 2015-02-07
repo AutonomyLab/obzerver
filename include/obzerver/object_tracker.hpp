@@ -2,9 +2,12 @@
 #define OBJECT_TRACKER_HPP
 
 #include "smctc/smctc.hh"
+#include "dbscan/dbscan.h"
+
 #include "opencv2/core/core.hpp"
 #include "obzerver/benchmarker.hpp"
 #include "obzerver/tobject.hpp"
+#include "obzerver/ccv_wrapper.hpp"
 
 /* SMC Stuff */
 
@@ -64,7 +67,26 @@ protected:
   unsigned short int num_clusters;
   cv::Mat labels;
   cv::Mat centers;
+  std::vector<cv::Mat> vec_cov;
   double clustering_err_threshold;
+
+  // DBSCAN
+//  struct cluster_bb_t
+//  {
+//    cv::Rect bb;
+//    bool is_object;
+//    cluster_bb_t(): bb(cv::Rect(0,0,0,0)), is_object(false) {}
+//    cluster_bb_t(const cv::Rect &bb_): bb(bb_), is_object(false) {}
+//  };
+
+  clustering::DBSCAN::ClusterData pts;
+  clustering::DBSCAN dbs;
+  std::map<std::int32_t, cv::Rect> motion_clusters_;
+  std::vector<cv::Rect> object_bbs_;
+
+  // ccv ICF object detection
+  ccv::ICFCascadeClassifier* icf_classifier_;
+
   TObject tobject;
 
   StepBenchmarker& ticker;
@@ -75,12 +97,15 @@ public:
   ObjectTracker(const std::size_t num_particles,
                 const std::size_t hist_len,
                 const float fps,
+                ccv::ICFCascadeClassifier* icf_classifier,
                 const unsigned short int crop = 30,
                 const double prob_random_move = 0.2,
                 const double mm_displacement_noise_stddev = 10);
   ~ObjectTracker();
 
   bool Update(const cv::Mat& img_stab, const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform);
+
+  bool Update2(const cv::Mat& img_stab, const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform, const cv::Mat& img_rgb);
 
   const TObject& GetObject() const;
   cv::Rect GetObjectBoundingBox(std::size_t t = 0) const;
