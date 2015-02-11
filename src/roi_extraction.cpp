@@ -157,4 +157,16 @@ void ROIExtraction::DrawROIs(cv::Mat &frame)
   }
 }
 
+std::size_t ROIExtraction::GetValidBBs(rect_vec_t &bb_vec) const
+{
+  std::size_t count = 0;
+  for (auto& roi_pair: rois_map_)
+  {
+    if (!roi_pair.second.valid) continue;
+    bb_vec.push_back(roi_pair.second.bb);
+    count++;
+  }
+  return count;
+}
+
 }  // namespace obz

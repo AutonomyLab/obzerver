@@ -46,9 +46,12 @@ public:
                      const obz::pts_vec_t& prev_features,
                      const cv::Mat& diff_frame);
 
-  void DrawROIs(cv::Mat& frame);
+  // This function appends data to bb_vec
+  std::size_t GetValidBBs(obz::rect_vec_t& bb_vec) const;
 
   const obz::roi_map_t& GetROIsMap() const {return rois_map_;}
+
+  void DrawROIs(cv::Mat& frame);
 };
 
 }  // namespace obz

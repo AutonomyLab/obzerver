@@ -382,8 +382,8 @@ bool PFObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, c
       int min_dist_cluster = 0;
       for (unsigned int i = 0; i < num_clusters; i++) {
         const cv::Point2f pt(centers.at<double>(i, 0), centers.at<double>(i, 1));
-        double dist = pow(pt.x - util::rectCenter(tracked_bb).x, 2);
-        dist += pow(pt.y - util::rectCenter(tracked_bb).y, 2);
+        double dist = pow(pt.x - util::RectCenter(tracked_bb).x, 2);
+        dist += pow(pt.y - util::RectCenter(tracked_bb).y, 2);
         dist = sqrt(dist);
         //LOG(INFO) << "[OT] Distance frome " << rectCenter(tracked_bb) << " to " << pt << " is " << dist << std::endl;
         if (dist < min_dist) {

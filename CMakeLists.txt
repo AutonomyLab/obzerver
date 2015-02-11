@@ -21,6 +21,8 @@ set(obzerver_SOURCES
     src/logger.cpp
     src/ccv_wrapper.cpp
     src/roi_extraction.cpp
+    src/hungarian.cpp
+    src/kalman.cpp
 )
 
 set(obzerver_HEADERS
@@ -37,6 +39,8 @@ set(obzerver_HEADERS
     include/obzerver/opencv3-backport/shift.hpp
     include/obzerver/ccv_wrapper.hpp
     include/obzerver/roi_extraction.hpp
+    include/obzerver/hungarian.hpp
+    include/obzerver/kalman.hpp
 )
 
 if(USE_CUSTOM_OPENCV)

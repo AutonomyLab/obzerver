@@ -16,7 +16,7 @@ namespace util
 {
 
 template<class T>
-inline cv::Point_<T> rectCenter(const cv::Rect_<T>& r) {
+inline cv::Point_<T> RectCenter(const cv::Rect_<T>& r) {
     return cv::Point_<T>(r.x + (r.width/static_cast<T>(2)), r.y + (r.height/static_cast<T>(2)));
 }
 
@@ -148,6 +148,12 @@ inline cv::Rect InflateRect(const cv::Rect& r,
   res.width *= (1.0 + w_inflation_factor);
   res.height *= (1.0 + h_inflation_factor);
   return res;
+}
+
+template<typename T> inline
+T Dist2(const cv::Point_<T> p1, const cv::Point_<T> p2)
+{
+  return static_cast<T>( ((p1.x - p2.x) * (p1.x - p2.x)) +  ((p1.y - p2.y) * (p1.y - p2.y)) );
 }
 
 }  // namespace util
