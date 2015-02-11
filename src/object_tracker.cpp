@@ -9,6 +9,9 @@
 
 #include <map>
 
+namespace obz
+{
+
 cv::Ptr<smc_shared_param_t> shared_data;
 
 double ParticleObservationUpdate(long t, const particle_state_t &X)
@@ -16,6 +19,10 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
   (void)t;  // shutup gcc
   int NN = 1; // Prevent div/0
   double corr_weight = 0.0;
+//  const cv::Point2d vec2center = X.bb.tl() - cv::Point2d(
+//        shared_data->obs_diff.cols/2.0, shared_data->obs_diff.rows/2.0);
+//  const double dist2center = 1.0 - (((vec2center.x * vec2center.x) + (vec2center.y * vec2center.y)) / ((shared_data->obs_diff.cols * shared_data->obs_diff.cols) + (shared_data->obs_diff.rows * shared_data->obs_diff.rows)));
+//  const double dist2center = 1.0;
   for (int i = -9; i < 10; i+=2) {
     for (int j = -9; j < 10; j+=2) {
       const int xx = (int) round(X.bb.tl().x) - i;
@@ -28,13 +35,17 @@ double ParticleObservationUpdate(long t, const particle_state_t &X)
         continue;
       }
       NN++;
-      corr_weight += shared_data->obs_diff.ptr<uchar>(yy)[xx];
-      //corr_weight += 0.9 * shared_data->obs_sof.ptr<float>(yy)[xx];
+      corr_weight += pow(shared_data->obs_diff.ptr<uchar>(yy)[xx], 2);
+      //corr_weight += shared_data->obs_diff.ptr<uchar>(yy)[xx];
+      if (shared_data->obs_sof.data)
+      {
+        corr_weight += shared_data->obs_sof.ptr<float>(yy)[xx];
+      }
     }
   }
 //  double corr_weight = cv::mean(shared_data->obs_diff(bb))[0];
   //corr_weight = (fabs(corr_weight > 1e-6)) ? log(corr_weight/NN) : -13.0;
-  corr_weight = (fabs(corr_weight > 1e-6)) ? (corr_weight/(float(NN) * 512.0)) : 1e-6;
+  corr_weight = (fabs(corr_weight > 1e-6)) ? (corr_weight/(float(NN) * (512.0 * 512))) : 1e-6;
 //  LOG(INFO) << corr_weight;
   return log(corr_weight);
 }
@@ -52,11 +63,14 @@ smc::particle<particle_state_t> ParticleInitialize(smc::rng *rng)
 void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
 {
   particle_state_t* cv_to = X.GetValuePointer();
+  const double min_xy = shared_data->crop;
+  const double max_x = shared_data->obs_diff.cols - shared_data->crop;
+  const double max_y = shared_data->obs_diff.rows - shared_data->crop;
   if (rng->Uniform(0.0, 1.0) > shared_data->prob_random_move) {
-    const cv::Point2f& p_stab = TransformPoint(cv_to->bb.tl(), shared_data->camera_transform.inv());
+    const cv::Point2f& p_stab = util::TransformPoint(cv_to->bb.tl(), shared_data->camera_transform.inv());
     cv_to->recent_random_move = false;
-    cv_to->bb.x = rng->Normal(p_stab.x, shared_data->mm_displacement_stddev);
-    cv_to->bb.y = rng->Normal(p_stab.y, shared_data->mm_displacement_stddev);
+    cv_to->bb.x = util::clamp(rng->Normal(p_stab.x, shared_data->mm_displacement_stddev), min_xy, max_x);
+    cv_to->bb.y = util::clamp(rng->Normal(p_stab.y, shared_data->mm_displacement_stddev), min_xy, max_y);
   } else {
     cv_to->recent_random_move = true;
     cv_to->bb.x = rng->Uniform(shared_data->crop, shared_data->obs_diff.cols - shared_data->crop);
@@ -67,7 +81,7 @@ void ParticleMove(long t, smc::particle<particle_state_t> &X, smc::rng *rng)
 }
 
 // We are sharing img_diff and img_sof by reference (no copy)
-ObjectTracker::ObjectTracker(const std::size_t num_particles,
+PFObjectTracker::PFObjectTracker(const std::size_t num_particles,
                              const std::size_t hist_len,
                              const float fps,
                              ccv::ICFCascadeClassifier *icf_classifier,
@@ -99,7 +113,7 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   shared_data->prob_random_move = prob_random_move;
   shared_data->mm_displacement_stddev = mm_displacement_noise_stddev;
 
-  sampler.SetResampleParams(SMC_RESAMPLE_STRATIFIED, 0.99);
+  sampler.SetResampleParams(SMC_RESAMPLE_MULTINOMIAL, 0.99);
   //sampler.SetResampleParams(SMC_RESAMPLE_STRATIFIED, 2000);
   sampler.SetMoveSet(moveset);
   sampler.Initialise();
@@ -115,17 +129,17 @@ ObjectTracker::ObjectTracker(const std::size_t num_particles,
   }
 }
 
-ObjectTracker::~ObjectTracker() {
+PFObjectTracker::~PFObjectTracker() {
   ;
 }
 
 
-bool ObjectTracker::Update2(const cv::Mat& img_stab, const cv::Mat &img_diff, const cv::Mat &img_sof, const cv::Mat &camera_transform, const cv::Mat& img_rgb)
+bool PFObjectTracker::Update2(const cv::Mat& img_stab, const cv::Mat &img_diff, const cv::Mat &camera_transform, const cv::Mat& img_rgb)
 {
   CV_Assert(img_diff.channels() == 1);
   // This is only shallow copy O(1)
   shared_data->obs_diff = img_diff;
-  shared_data->obs_sof = img_sof;
+  //shared_data->obs_sof = img_sof;
   shared_data->camera_transform = camera_transform;
 
   sampler.Iterate();
@@ -140,7 +154,7 @@ bool ObjectTracker::Update2(const cv::Mat& img_stab, const cv::Mat &img_diff, co
   ticker.tick("OT_Particles_to_Mat");
 //  LOG(INFO) << "Size of matrix is: " << pts.size1() << " x " << pts.size2();
 
-  dbs.init(0.02, num_particles / 20, 4);
+  dbs.init(0.03, num_particles / 20, 4);
   dbs.reset();
   dbs.fit(pts);
   ticker.tick("OT_Clustering");
@@ -158,7 +172,7 @@ bool ObjectTracker::Update2(const cv::Mat& img_stab, const cv::Mat &img_diff, co
     if (cid == -1) continue;
     if (motion_clusters_.count(cid) == 0)
     {
-      motion_clusters_.insert(std::pair<int32_t, cv::Rect>(cid, cv::Rect(p.bb.x, p.bb.y, 0, 0)));
+      motion_clusters_.insert(std::pair<int32_t, cv::Rect>(cid, cv::Rect(p.bb.x, p.bb.y, 1, 1)));
       num_clusters++;
     }
     cv::Rect& r = motion_clusters_[cid];
@@ -166,22 +180,24 @@ bool ObjectTracker::Update2(const cv::Mat& img_stab, const cv::Mat &img_diff, co
     if (p.bb.x < r.x)  // grow left
     {
       r.x = p.bb.x;
-      r.width = r.x - r.br().x;
+      r.width = std::max(r.br().x - r.x, 1);
     }
     else if (p.bb.x > r.br().x) // grow right
     {
-      r.width = p.bb.x - r.x;
+      r.width = std::max(static_cast<std::int32_t>(p.bb.x) - r.x, 1);
     }
 
     if (p.bb.y < r.y)  // grow top
     {
       r.y = p.bb.y;
-      r.height = r.y - r.br().y;
+      r.height = std::max(r.br().y - r.y, 1);
     }
     else if (p.bb.y > r.br().y) // grow bottom
     {
-      r.height = p.bb.y - r.y;
+      r.height = std::max(static_cast<std::int32_t>(p.bb.y) - r.y, 1);
     }
+    CV_Assert(r.width >=0 && r.height >= 0);
+    CV_Assert(r.x >= 0 && r.y >=0 && r.br().x < img_stab.cols && r.br().y < img_stab.rows);
 
 //    r.x = std::min(static_cast<std::int32_t>(round(p.bb.tl().x)), r.x);
 //    r.width = std::max(static_cast<std::int32_t>(round(p.bb.br().x)), r.x) - r.x;
@@ -196,18 +212,29 @@ bool ObjectTracker::Update2(const cv::Mat& img_stab, const cv::Mat &img_diff, co
   object_bbs_.clear();
   if (icf_classifier_)
   {
+    objectness_obs_ = cv::Mat::zeros(img_stab.rows, img_stab.cols, CV_32FC1);
     std::vector<ccv::ICFCascadeClassifier::result_t> icf_result_vec;
     for (std::size_t i = 0; i < num_clusters; i++)
     {
-      if (motion_clusters_[i].area() <= 0.0) continue;
+      if (motion_clusters_[i].width == 0 || motion_clusters_[i].height == 0)
+      {
+        LOG(WARNING) << "Skipping";
+        continue;
+      }
       icf_result_vec.clear();
       const std::size_t num_det_objects = icf_classifier_->Detect(img_rgb, icf_result_vec, motion_clusters_[i]);
       for (std::size_t j = 0; j < num_det_objects; j++)
       {
         object_bbs_.push_back(icf_result_vec[i].bb);
+        cv::rectangle(objectness_obs_, icf_result_vec[i].bb, cv::Scalar(1e2, 1e2, 1e2), CV_FILLED);
+      }
+      if (!num_det_objects)
+      {
+        cv::rectangle(objectness_obs_, motion_clusters_[i], cv::Scalar(-5, -5, -5), CV_FILLED);
       }
       LOG(INFO) << "Cluster #" << i << " : " << icf_result_vec.size();
     }
+    shared_data->obs_sof = objectness_obs_;  // shallow
     ticker.tick("OT_ICF");
   }
 
@@ -217,7 +244,7 @@ bool ObjectTracker::Update2(const cv::Mat& img_stab, const cv::Mat &img_diff, co
   return false;
 }
 
-bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, const cv::Mat &img_sof, const cv::Mat &camera_transform)
+bool PFObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, const cv::Mat &img_sof, const cv::Mat &camera_transform)
 {
   CV_Assert(img_diff.channels() == 1);
   //CV_Assert(img_sof.type() == CV_8UC1);
@@ -245,9 +272,6 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
 
   //std::vector<cv::Point2f> pts(sampler.GetNumber());
 
-#define _DBSCAN_
-
-#ifdef _EM_
   std::vector<cv::Point2f> pts;
   std::vector<cv::Point2f> pts_w;
   for (long i = 0; i < sampler.GetNumber(); i++) {
@@ -270,20 +294,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   particles_pose = particles_pose.reshape(1);
 
   ticker.tick("OT_Particles_to_Mat");
-#endif
 
-#if 1
-  //clustering::DBSCAN::ClusterData pts(sampler.GetNumber(), 2);
-  for (long int i = 0; i < sampler.GetNumber(); i++)
-  {
-    const particle_state_t& p = sampler.GetParticleValue(i);
-    pts(i, 0) = -1.0 + (p.bb.x / 480.0);
-    pts(i, 1) = -1.0 + (p.bb.y / 270.0);
-//    LOG(INFO) << i << "," << pts(i, 0) << "," << pts(i, 1);
-  }
-  ticker.tick("OT_Particles_to_Mat");
-  LOG(INFO) << "Size of matrix is: " << pts.size1() << " x " << pts.size2();
-#endif
 //  cv::Mat particles_mask = cv::Mat::zeros(img_stab.size(), CV_8UC1);
 //  for (std::size_t i = 0; i < pts.size(); i++) {
 //    cv::rectangle(particles_mask, cv::Rect(pts[i], cv::Size(5,5)), cv::Scalar(255, 255, 255));
@@ -291,7 +302,6 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
 //  cv::bitwise_and(img_stab, particles_mask, particles_mask);
 //  ticker.tick("  [OT] Particles Mask");
 
-#ifdef _EM_
   unsigned short int k = 0;
   double err = 1e12;
   vec_cov.clear();
@@ -331,17 +341,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   }
 
   ticker.tick("OT_Clustering");
-#endif
 
-#if 1
-  //clustering::DBSCAN dbs(0.01, 10, 4);
-  dbs.init(0.01, 10, 4);
-  dbs.reset();
-  dbs.fit(pts);
-  ticker.tick("OT_Clustering");
-  LOG(INFO) << "*********** LABELS: " << dbs.get_labels().size();
-  LOG(INFO) << dbs;
-#endif
   if (status == TRACKING_STATUS_LOST) {
     if (num_clusters != 1) {
       LOG(INFO) << "[OT]  Waiting for first dense cluser ...";
@@ -366,7 +366,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
     }
   } else if (status == TRACKING_STATUS_TRACKING) {
     cv::Rect tracked_bb = tobject().latest().bb;
-    const cv::Point2f& p_stab = TransformPoint(tracked_bb.tl(), camera_transform.inv());
+    const cv::Point2f& p_stab = util::TransformPoint(tracked_bb.tl(), camera_transform.inv());
     tracked_bb.x = p_stab.x;
     tracked_bb.y = p_stab.y;
     if (tracking_counter == 0) {
@@ -382,8 +382,8 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
       int min_dist_cluster = 0;
       for (unsigned int i = 0; i < num_clusters; i++) {
         const cv::Point2f pt(centers.at<double>(i, 0), centers.at<double>(i, 1));
-        double dist = pow(pt.x - rectCenter(tracked_bb).x, 2);
-        dist += pow(pt.y - rectCenter(tracked_bb).y, 2);
+        double dist = pow(pt.x - util::rectCenter(tracked_bb).x, 2);
+        dist += pow(pt.y - util::rectCenter(tracked_bb).y, 2);
         dist = sqrt(dist);
         //LOG(INFO) << "[OT] Distance frome " << rectCenter(tracked_bb) << " to " << pt << " is " << dist << std::endl;
         if (dist < min_dist) {
@@ -430,7 +430,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
       tracked_bb.y = param_lpf * tracked_bb.y + (1.0 - param_lpf) * bb.y;
       tracked_bb.width = param_lpf * tracked_bb.width + (1.0 - param_lpf) * bb.width;
       tracked_bb.height = param_lpf * tracked_bb.height + (1.0 - param_lpf) * bb.height;
-      tracked_bb = ClampRect(tracked_bb, img_stab.cols, img_stab.rows);
+      tracked_bb = util::ClampRect(tracked_bb, img_stab.cols, img_stab.rows);
       if (tracked_bb.area() == 0) {
         // 0-tolerance!
         LOG(WARNING) << "Tracked BB Area is 0. Resetting.";
@@ -447,7 +447,7 @@ bool ObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, con
   return true;
 }
 
-cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f> &pts,
+cv::Rect PFObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f> &pts,
                                             const cv::Point2f center,
                                             const float cov_x,
                                             const float cov_y,
@@ -483,10 +483,10 @@ cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f> &pts,
       );
 
   //LOG(INFO) << "Generate BB: " << _c[0] << " " << _c[1] << " " << _s[0] <<  " " << _s[1];
-  return ClampRect(bb, boundary_width, boundary_height);
+  return util::ClampRect(bb, boundary_width, boundary_height);
 }
 
-cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f>& pts,
+cv::Rect PFObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f>& pts,
                                             const std::vector<cv::Point2f>& weights,
                                             const float alpha,
                                             const float max_width,
@@ -512,25 +512,31 @@ cv::Rect ObjectTracker::GenerateBoundingBox(const std::vector<cv::Point2f>& pts,
   cv::Rect bb(int(_c[0] - _e/2.0), int(_c[1] - _e/2.0), _e, _e);
 
   // TODO: fix ratio
-  return ClampRect(bb, boundary_width, boundary_height);
+  return util::ClampRect(bb, boundary_width, boundary_height);
 }
 
-const TObject &ObjectTracker::GetObject() const
+const TObject &PFObjectTracker::GetObject() const
 {
   return tobject;
 }
 
-cv::Rect ObjectTracker::GetObjectBoundingBox(std::size_t t) const {
+cv::Rect PFObjectTracker::GetObjectBoundingBox(std::size_t t) const {
   return (tobject().size()) ? tobject.Get(t).bb : cv::Rect(0, 0, 0, 0);
 }
 
 /* Debug */
 
-void ObjectTracker::DrawParticles(cv::Mat &img)
+void PFObjectTracker::DrawParticles(cv::Mat &img)
 {
   for (long i = 0; i < sampler.GetNumber(); i++) {
     if (!sampler.GetParticleValue(i).recent_random_move)
+    {
       cv::circle(img, sampler.GetParticleValue(i).bb.tl(), std::max(0.0, sampler.GetParticleWeight(i)), cv::Scalar(0, 0, 0), -1);
+    }
+    else
+    {
+      cv::circle(img, sampler.GetParticleValue(i).bb.tl(), std::max(0.0, sampler.GetParticleWeight(i)), cv::Scalar(255, 255, 255), -1);
+    }
   }
 
   for (auto &bb: motion_clusters_)
@@ -555,3 +561,5 @@ void ObjectTracker::DrawParticles(cv::Mat &img)
     cv::rectangle(img, GetObjectBoundingBox(), cv::Scalar(127, 127, 127), 5);
   }
 }
+
+}  // namespace obz

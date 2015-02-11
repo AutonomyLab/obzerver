@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 
   /* Logger */
 
-  obz_log_config(argv[0], logfile);
+  obz::log_config(argv[0], logfile);
 
   /* Variables */
 
@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
   cv::Mat frame;
   StepBenchmarker& ticker = StepBenchmarker::GetInstance();
   cv::VideoCapture capture;
-  trackbar_data_t trackbar_data(&capture, &frame_counter);
+  obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);
   ccv::ICFCascadeClassifier icf(cascade_src);
 
   LOG(INFO) << "Video Source: " << video_src;
@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
       const std::size_t num_frames = capture.get(CV_CAP_PROP_FRAME_COUNT);
       cv::namedWindow("Video", cv::WINDOW_AUTOSIZE | opengl_flags);
       if (num_frames > 0) {
-        cv::createTrackbar("Browse", "Video", 0, num_frames, trackbarCallback, &trackbar_data);
+        cv::createTrackbar("Browse", "Video", 0, num_frames, obz::util::trackbarCallback, &trackbar_data);
         cv::setTrackbarPos("Browse", "Video", frame_counter);
       }
       cv::setMouseCallback("Video", mouseCallback, (void*) &pause);

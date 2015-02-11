@@ -5,7 +5,11 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/video/tracking.hpp"
 
+#include "obzerver/utility.hpp"
 #include "obzerver/camera_tracker.hpp"
+
+namespace obz
+{
 
 CameraTracker::CameraTracker(const std::size_t hist_len,
                              const cv::Ptr<cv::FeatureDetector> feature_detector,
@@ -41,7 +45,7 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
   kpts.clear();
   feature_detector->detect(frame_gray_hist.prev(), kpts);
   ticker.tick("CT_Feature_Detection");
-  LOG(INFO) << "CT_Keypoints: " << kpts.size();
+  LOG(INFO) << "[CT] Keypoints: " << kpts.size();
   std::size_t pts_to_copy = 0;
 
   if (kpts.size() > max_features) {
@@ -139,11 +143,14 @@ void CameraTracker::UpdateDiff() {
   cv::Mat diff;
   cv::absdiff(cache_frame_stablized_gray, frame_gray_hist.prev(), diff);
   //cv::absdiff(frame_gray_hist.latest(), frame_gray_hist.prev(), diff);
-  //cv::meanStdDev(diff, thres_mean, thres_stddev);
-  //cv::threshold(diff, diff, thres_mean[0] + thres_stddev[0], 0, cv::THRESH_TOZERO);
+  cv::meanStdDev(diff, thres_mean, thres_stddev);
+  cv::threshold(diff, diff, thres_mean[0] + thres_stddev[0], 255, cv::THRESH_TOZERO);
+  //cv::threshold(diff, diff, 1, 255, cv::THRESH_BINARY);
+  //cv::threshold(diff, diff, 0, 0, cv::THRESH_TOZERO | cv::THRESH_OTSU);
+
+  cache_frame_diff = diff; return;
 
   diff_hist.push_front(diff);
-  cache_frame_diff = diff; return;
   cache_frame_diff = cv::Mat::zeros(diff.size(), CV_16UC1);
   //cv::Mat trans_to_histlen = camera_transform_hist_acc.at(0).inv();
   //cv::Mat dummy;
@@ -197,3 +204,5 @@ void CameraTracker::FailureUpdate() {
   cache_frame_stablized_gray = frame_gray_hist.latest().clone();
   UpdateAccumulatedTransforms();
 }
+
+}  // namespace obz

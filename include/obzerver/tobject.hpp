@@ -1,15 +1,13 @@
 #ifndef TOBJECT_HPP
 #define TOBJECT_HPP
 
+#include "obzerver/common_types.hpp"
 #include "obzerver/circular_buffer.hpp"
 #include "obzerver/self_similarity.hpp"
 #include "obzerver/fft.hpp"
 
-struct object_t {
-  cv::Rect bb;
-  object_t(): bb(cv::Rect(0,0,0,0)) {;}
-  object_t(const cv::Rect& bb): bb(bb) {;}
-};
+namespace obz
+{
 
 class TObject {
 protected:
@@ -33,4 +31,5 @@ public:
   const SelfSimilarity& GetSelfSimilarity() const {return self_similarity; }
 };
 
+}  // namespace obz
 #endif

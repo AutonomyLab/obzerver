@@ -4,6 +4,9 @@
 
 #include "obzerver/utility.hpp"
 
+namespace obz
+{
+
 Periodicity::Periodicity(const std::size_t hist_len, const float fps)
   : hist_len(hist_len), fps(fps), hann_window(1, hist_len, CV_32F), average_counter(0)
 {
@@ -114,3 +117,5 @@ bool CalcVecDFT(const cv::Mat& vec_m,
 
     return true;
 }
+
+}  // namespace obz

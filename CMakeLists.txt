@@ -20,9 +20,11 @@ set(obzerver_SOURCES
     src/tobject.cpp
     src/logger.cpp
     src/ccv_wrapper.cpp
+    src/roi_extraction.cpp
 )
 
 set(obzerver_HEADERS
+    include/obzerver/common_types.hpp
     include/obzerver/utility.hpp
     include/obzerver/benchmarker.hpp
     include/obzerver/circular_buffer.hpp
@@ -34,6 +36,7 @@ set(obzerver_HEADERS
     include/obzerver/logger.hpp
     include/obzerver/opencv3-backport/shift.hpp
     include/obzerver/ccv_wrapper.hpp
+    include/obzerver/roi_extraction.hpp
 )
 
 if(USE_CUSTOM_OPENCV)

@@ -3,8 +3,10 @@
 #include "obzerver/logger.hpp"
 #include "glog/logging.h"
 
+namespace obz
+{
 
-void obz_log_config(const char *prog_name, const std::string& logfile) {
+void log_config(const char *prog_name, const std::string& logfile) {
   google::InitGoogleLogging(prog_name);
   if (logfile.empty()) {
     google::LogToStderr();
@@ -13,3 +15,5 @@ void obz_log_config(const char *prog_name, const std::string& logfile) {
     google::SetLogDestination(google::GLOG_INFO, logfile.c_str());
   }
 }
+
+}  // namespace obz

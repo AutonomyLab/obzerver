@@ -2,6 +2,11 @@
 #include <iostream>
 #include <cassert>
 
+namespace obz
+{
+namespace util
+{
+
 std::string getCvMatTypeStr(const int type) {
   std::string r;
 
@@ -239,5 +244,7 @@ void drawOpticalFlowScatter(const cv::Mat& u,
         }
 
     }
-
 }
+
+}  // namespace util
+}  // namespace obz

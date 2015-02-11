@@ -5,11 +5,13 @@
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
+#include "obzerver/common_types.hpp"
 #include "obzerver/logger.hpp"
 #include "obzerver/utility.hpp"
 #include "obzerver/benchmarker.hpp"
 #include "obzerver/camera_tracker.hpp"
 #include "obzerver/object_tracker.hpp"
+#include "obzerver/roi_extraction.hpp"
 
 void mouseCallback(int event, int x, int y, int flags, void* data) {
   (void) flags;  // shutup gcc
@@ -79,7 +81,7 @@ int main(int argc, char* argv[]) {
 
   /* Logger */
 
-  obz_log_config(argv[0], logfile);
+  obz::log_config(argv[0], logfile);
 
   /* Variables */
   unsigned long int frame_counter = 0;
@@ -93,10 +95,12 @@ int main(int argc, char* argv[]) {
   cv::Ptr<cv::FeatureDetector> feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
 
   cv::Ptr<ccv::ICFCascadeClassifier> ccv_icf_ptr = 0;
-  //cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK();
-  //cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector();
-  CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
-  trackbar_data_t trackbar_data(&capture, &frame_counter);
+//  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK(param_ffd_threshold);
+//  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector(param_max_features);
+  obz::CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
+  obz::ROIExtraction roi_extraction(0.05, 8, cv::Size(0, 0),
+                                    cv::Size(200, 200), 1.0, 1.1, 1.0, 2);
+  obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);
 
   LOG(INFO) << "Video Source: " << video_src;
   LOG(INFO) << "Feature Detector: " << feature_detector->name();
@@ -115,7 +119,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  ObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
+  obz::PFObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
 
 
   int opengl_flags = 0;
@@ -151,7 +155,7 @@ int main(int argc, char* argv[]) {
       cv::namedWindow("DiffStab", cv::WINDOW_NORMAL | opengl_flags);
       cv::namedWindow("Debug", cv::WINDOW_NORMAL | opengl_flags);
       if (num_frames > 0) {
-        cv::createTrackbar("Browse", "Original", 0, num_frames, trackbarCallback, &trackbar_data);
+        cv::createTrackbar("Browse", "Original", 0, num_frames, obz::util::trackbarCallback, &trackbar_data);
         cv::setTrackbarPos("Browse", "Original", frame_counter);
       }
       cv::setMouseCallback("Original", mouseCallback, (void*) &pause);
@@ -175,9 +179,13 @@ int main(int argc, char* argv[]) {
         LOG(WARNING) << "Camera Tracker Failed";
         // TODO
       } else {
+        roi_extraction.Update(camera_tracker.GetTrackedFeaturesCurr(),
+                              camera_tracker.GetTrackedFeaturesPrev(),
+                              camera_tracker.GetLatestDiff());
+
         object_tracker.Update2(camera_tracker.GetStablizedGray(), // TODO
                               camera_tracker.GetLatestDiff(),
-                              camera_tracker.GetLatestSOF(),
+//                              camera_tracker.GetLatestSOF(),
                               camera_tracker.GetLatestCameraTransform(),
                               camera_tracker.GetStablizedRGB());
 
@@ -216,7 +224,7 @@ int main(int argc, char* argv[]) {
 //        LOG(INFO) << center << " : " << _w<< " - " <<  _h;
       }
 
-      if (display) {
+      if (display) {          
           cv::Mat diff_frame = camera_tracker.GetLatestDiff();
           diff_frame.convertTo(diff_frame, CV_8UC1, 5.0);
 //        cv::Mat diff_frame = camera_tracker.GetLatestSOF();
@@ -226,15 +234,17 @@ int main(int argc, char* argv[]) {
 //          cv::imwrite("data/sim.bmp", diff_frame);
 //        }
         cv::Mat debug_frame = camera_tracker.GetStablizedGray();
+        roi_extraction.DrawROIs(frame);
         object_tracker.DrawParticles(debug_frame);
-        if (camera_tracker.GetTrackedFeaturesCurr().size()) {          
-          drawFeaturePointsTrajectory(frame,
-                                      camera_tracker.GetHomographyOutliers(),
-                                      camera_tracker.GetTrackedFeaturesPrev(),
-                                      camera_tracker.GetTrackedFeaturesCurr(),
-                                      2,
-                                      CV_RGB(0,0,255), CV_RGB(255, 0, 0), CV_RGB(255, 0, 0));
-        }
+
+//        if (camera_tracker.GetTrackedFeaturesCurr().size()) {
+//          drawFeaturePointsTrajectory(frame,
+//                                      camera_tracker.GetHomographyOutliers(),
+//                                      camera_tracker.GetTrackedFeaturesPrev(),
+//                                      camera_tracker.GetTrackedFeaturesCurr(),
+//                                      2,
+//                                      CV_RGB(0,0,255), CV_RGB(255, 0, 0), CV_RGB(255, 0, 0));
+//        }
 
         cv::rectangle(diff_frame, cv::Rect(center.x - _w/2, center.y-_h/2, _w, _h), CV_RGB(255, 255, 255));
 

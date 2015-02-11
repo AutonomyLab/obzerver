@@ -3,8 +3,12 @@
 
 #include <string>
 
+namespace obz
+{
+
 // Empty log to stderr
 // TODO: Configure Level
-void obz_log_config(const char* prog_name, const std::string& logfile = std::string(""));
+void log_config(const char* prog_name, const std::string& logfile = std::string(""));
 
+}  // namespace obz
 #endif

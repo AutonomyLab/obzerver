@@ -8,6 +8,9 @@
 #include "obzerver/circular_buffer.hpp"
 #include "obzerver/benchmarker.hpp"
 
+namespace obz
+{
+
 class SelfSimilarity {
 
   typedef CircularBuffer<cv::Mat> mseq_t;
@@ -41,4 +44,6 @@ public:
 
   std::size_t GetHistoryLen() const;
 };
+
+}  // namespace obz
 #endif

@@ -5,12 +5,14 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/video/tracking.hpp"
 
-
 #include "glog/logging.h"
 
 #include "obzerver/utility.hpp"
 #include "obzerver/self_similarity.hpp"
 #include "obzerver/opencv3-backport/shift.hpp"
+
+namespace obz
+{
 
 class ParallelFrameSimilarity: public cv::ParallelLoopBody {
 private:
@@ -165,8 +167,8 @@ void SelfSimilarity::Update() {
     heights[i] = sequence.at(i).size().height;
   }
 
-  const std::size_t w = quick_median(widths)* 0.5;
-  const std::size_t h = quick_median(heights) * 0.5;
+  const std::size_t w = util::quick_median(widths)* 0.5;
+  const std::size_t h = util::quick_median(heights) * 0.5;
 
 //  LOG(INFO) << "Median Size: " << w << ", " << h << " @ " << sequence.size();
 
@@ -230,3 +232,5 @@ void SelfSimilarity::WriteToDisk(const std::string& path, const std::string& pre
     cv::imwrite(ss.str(), *it);
   }
 }
+
+}  // namespace obz

@@ -3,13 +3,15 @@
 
 #include <vector>
 
+#include "obzerver/common_types.hpp"
 #include "obzerver/circular_buffer.hpp"
 #include "obzerver/benchmarker.hpp"
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d/features2d.hpp"
 
-typedef std::vector<cv::Point2f>  pts_vec_t;
+namespace obz
+{
 
 struct KeypointsGreaterThan {
     bool operator() (const cv::KeyPoint& k1, const cv::KeyPoint& k2) {
@@ -75,10 +77,12 @@ public:
   const cv::Mat& GetLatestSOF() const {return cache_sof_image;}
   const cv::Mat& GetStablizedGray() const {return cache_frame_stablized_gray;}
   const cv::Mat& GetStablizedRGB() const {return cache_frame_stablized_rgb;}
-  const pts_vec_t& GetTrackedFeaturesCurr() const {return tracked_features_curr;}
-  const pts_vec_t& GetTrackedFeaturesPrev() const {return tracked_features_prev;}
+  const obz::pts_vec_t& GetTrackedFeaturesCurr() const {return tracked_features_curr;}
+  const obz::pts_vec_t& GetTrackedFeaturesPrev() const {return tracked_features_prev;}
   const cv::Mat& GetHomographyOutliers() const {return est_homography_outliers;}
   const cv::Mat& GetLatestCameraTransform() const {return camera_transform_hist.latest(); }
+
 };
 
+}  // namespace obz
 #endif // CAMERATRACKER_HPP

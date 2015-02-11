@@ -3,6 +3,9 @@
 
 #include "opencv2/core/core.hpp"
 
+namespace obz
+{
+
 bool CalcVecDFT(const cv::Mat& vec_m,
                 std::vector<float>& fft_power,
                 const cv::Mat& win_m,
@@ -26,4 +29,5 @@ public:
   const std::vector<float>& GetSpectrum() const {return fft_power;}
 };
 
+}  // namespace obz
 #endif

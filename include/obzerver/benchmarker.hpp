@@ -2,6 +2,7 @@
 #define BENCHMARKER_H
 
 #include <vector>
+#include <string>
 
 /* Singleton */
 class StepBenchmarker {

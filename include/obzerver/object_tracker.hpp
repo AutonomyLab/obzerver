@@ -11,6 +11,9 @@
 
 /* SMC Stuff */
 
+namespace obz
+{
+
 struct smc_shared_param_t {
   cv::Mat obs_diff;
   cv::Mat obs_sof;
@@ -49,7 +52,7 @@ enum tracking_status_t {
   TRACKING_STATUS_NUM
 };
 
-class ObjectTracker {
+class PFObjectTracker {
 protected:
   std::size_t num_particles;
   std::size_t hist_len;
@@ -83,6 +86,7 @@ protected:
   clustering::DBSCAN dbs;
   std::map<std::int32_t, cv::Rect> motion_clusters_;
   std::vector<cv::Rect> object_bbs_;
+  cv::Mat objectness_obs_;
 
   // ccv ICF object detection
   ccv::ICFCascadeClassifier* icf_classifier_;
@@ -94,18 +98,18 @@ protected:
   cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const cv::Point2f center, const float cov_x, const float cov_y, const float alpha, const int max_width, const int boundary_width, const int boundary_height);
   cv::Rect GenerateBoundingBox(const std::vector<cv::Point2f> &pts, const std::vector<cv::Point2f> &weights, const float alpha, const float max_width, const int boundary_width, const int boundary_height);
 public:
-  ObjectTracker(const std::size_t num_particles,
+  PFObjectTracker(const std::size_t num_particles,
                 const std::size_t hist_len,
                 const float fps,
                 ccv::ICFCascadeClassifier* icf_classifier,
                 const unsigned short int crop = 30,
-                const double prob_random_move = 0.2,
-                const double mm_displacement_noise_stddev = 10);
-  ~ObjectTracker();
+                const double prob_random_move = 0.25,
+                const double mm_displacement_noise_stddev = 20);
+  ~PFObjectTracker();
 
   bool Update(const cv::Mat& img_stab, const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform);
 
-  bool Update2(const cv::Mat& img_stab, const cv::Mat& img_diff, const cv::Mat& img_sof, const cv::Mat& camera_transform, const cv::Mat& img_rgb);
+  bool Update2(const cv::Mat& img_stab, const cv::Mat& img_diff, const cv::Mat& camera_transform, const cv::Mat& img_rgb);
 
   const TObject& GetObject() const;
   cv::Rect GetObjectBoundingBox(std::size_t t = 0) const;
@@ -115,5 +119,6 @@ public:
 
 };
 
+}  // namespace obz
 #endif
 

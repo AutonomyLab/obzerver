@@ -10,6 +10,11 @@
 
 #include <iostream>
 
+namespace obz
+{
+namespace util
+{
+
 template<class T>
 inline cv::Point_<T> rectCenter(const cv::Rect_<T>& r) {
     return cv::Point_<T>(r.x + (r.width/static_cast<T>(2)), r.y + (r.height/static_cast<T>(2)));
@@ -131,4 +136,20 @@ void dumpCvMatInfo(const cv::Mat& m);
 void DownloadGpuMatToVecFC2(const cv::gpu::GpuMat& d_mat, std::vector<cv::Point2f>& vec);
 void DownloadGpuMatToVecUC1(const cv::gpu::GpuMat& d_mat, std::vector<uchar>& vec);
 
+// Inflate a Rect wrt to its center
+// iw = 1.2 (10% increase for each side)
+inline cv::Rect InflateRect(const cv::Rect& r,
+                            const double w_inflation_factor,
+                            const double h_inflation_factor)
+{
+  cv::Rect res = r;
+  res.x -= (w_inflation_factor / 2.0 * res.width);
+  res.y -= (h_inflation_factor / 2.0 * res.height);
+  res.width *= (1.0 + w_inflation_factor);
+  res.height *= (1.0 + h_inflation_factor);
+  return res;
+}
+
+}  // namespace util
+}  // namespace obz
 #endif
