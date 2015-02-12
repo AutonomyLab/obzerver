@@ -26,4 +26,5 @@ public:
 };
 
 
+#define TICK(STR) (StepBenchmarker::GetInstance().tick(STR))
 #endif

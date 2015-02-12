@@ -9,7 +9,7 @@
 namespace obz
 {
 
-KalmanFilter::KalmanFilter(const cv::Rect &r):
+ExKalmanFilter::ExKalmanFilter(const cv::Rect &r):
   kf_(6, 4, 0),
   state_(6, 1, CV_32F),
   measurement_(4, 1, CV_32F),
@@ -32,10 +32,10 @@ KalmanFilter::KalmanFilter(const cv::Rect &r):
   Init(r);
 }
 
-KalmanFilter::~KalmanFilter()
+ExKalmanFilter::~ExKalmanFilter()
 {}
 
-void KalmanFilter::Init(const cv::Rect &r)
+void ExKalmanFilter::Init(const cv::Rect &r)
 {
   last_update_time_ = cv::getTickCount();
   measurement_.setTo(cv::Scalar(0.0));
@@ -56,7 +56,7 @@ void KalmanFilter::Init(const cv::Rect &r)
   setIdentity(kf_.errorCovPost, cv::Scalar::all(0.1));
 }
 
-void KalmanFilter::Predict(const cv::Mat& camera_transform)
+void ExKalmanFilter::Predict(const cv::Mat& camera_transform)
 {
   const double dt =
       static_cast<double>(cv::getTickCount() - last_update_time_) / cv::getTickFrequency();
@@ -67,6 +67,7 @@ void KalmanFilter::Predict(const cv::Mat& camera_transform)
   kf_.transitionMatrix.at<float>(1, 3) = dt;
 
   // Compensate Camera Motion
+  // Transform state from t-1's coordinate system to t's coordinate system
   // TODO: Merge this into Kalman Filter Model
   cv::Point2f pt_stab(kf_.statePost.at<float>(0, 0), kf_.statePost.at<float>(1, 0));
   pt_stab = obz::util::TransformPoint(pt_stab, camera_transform);
@@ -76,13 +77,13 @@ void KalmanFilter::Predict(const cv::Mat& camera_transform)
   state_ = kf_.predict();
 }
 
-obz::object_t KalmanFilter::Update(const cv::Mat &camera_transform)
+obz::object_t ExKalmanFilter::Update(const cv::Mat &camera_transform)
 {
   Predict(camera_transform);
   return obz::object_t(state_);
 }
 
-obz::object_t KalmanFilter::Update(const cv::Mat &camera_transform, const cv::Rect &obz)
+obz::object_t ExKalmanFilter::Update(const cv::Rect &obz, const cv::Mat &camera_transform)
 {
   Predict(camera_transform);
   measurement_(0, 0) = obz.x;

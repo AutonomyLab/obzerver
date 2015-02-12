@@ -121,7 +121,10 @@ bool ROIExtraction::Update(
       continue;
     }
 
-    roi.bb = obz::util::InflateRect(r, inf_factor_width_, inf_factor_height_);
+    roi.bb = obz::util::ClampRect(
+          obz::util::InflateRect(r, inf_factor_width_, inf_factor_height_),
+          diff_frame.cols, diff_frame.rows);
+
     roi.valid = true;
     num_clusters++;
   }

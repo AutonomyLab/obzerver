@@ -20,8 +20,8 @@ protected:
 public:
   TObject(const std::size_t hist_len, const float fps);
   void Reset();
-  void Update(const cv::Mat& frame, const object_t& obj, const bool reset = false);
-  void Update(const cv::Mat& frame, const cv::Rect& bb, const bool reset = false);
+  void Update(const object_t& obj, const cv::Mat& frame, const bool reset = false);
+  void Update(const cv::Rect& bb, const cv::Mat& frame, const bool reset = false);
 
   const object_t& Get(const std::size_t index = 0) const {return obj_hist.at(index); }
   const CircularBuffer<object_t>& GetHist() const {return obj_hist;}

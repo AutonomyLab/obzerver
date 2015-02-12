@@ -23,6 +23,7 @@ set(obzerver_SOURCES
     src/roi_extraction.cpp
     src/hungarian.cpp
     src/kalman.cpp
+    src/multi_object_tracker.cpp
 )
 
 set(obzerver_HEADERS
@@ -41,6 +42,7 @@ set(obzerver_HEADERS
     include/obzerver/roi_extraction.hpp
     include/obzerver/hungarian.hpp
     include/obzerver/kalman.hpp
+    include/obzerver/multi_object_tracker.hpp
 )
 
 if(USE_CUSTOM_OPENCV)

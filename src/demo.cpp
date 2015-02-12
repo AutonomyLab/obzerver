@@ -12,11 +12,7 @@
 #include "obzerver/camera_tracker.hpp"
 #include "obzerver/object_tracker.hpp"
 #include "obzerver/roi_extraction.hpp"
-
-// TEMP
-
-#include "obzerver/kalman.hpp"
-#include "obzerver/hungarian.hpp"
+#include "obzerver/multi_object_tracker.hpp"
 
 void mouseCallback(int event, int x, int y, int flags, void* data) {
   (void) flags;  // shutup gcc
@@ -107,11 +103,7 @@ int main(int argc, char* argv[]) {
                                     cv::Size(200, 200), 1.0, 1.1, 1.0, 2);
   obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);
 
-  // TEMP
-  obz::KalmanFilter kf;
-  bool kf_started = false;
-  cv::Rect tracked_bb;
-  obz::alg::Hungarian hs;
+
 
   LOG(INFO) << "Video Source: " << video_src;
   LOG(INFO) << "Feature Detector: " << feature_detector->name();
@@ -131,7 +123,7 @@ int main(int argc, char* argv[]) {
   }
 
   obz::PFObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
-
+  obz::MultiObjectTracker multi_object_tracker(90, fps, 10);
 
   int opengl_flags = 0;
   if (display)
@@ -194,61 +186,17 @@ int main(int argc, char* argv[]) {
                                   camera_tracker.GetTrackedFeaturesPrev(),
                                   camera_tracker.GetLatestDiff()))
         {
-
           obz::rect_vec_t rois;
           roi_extraction.GetValidBBs(rois);
-          LOG(INFO) << "ROI Extraction succesfull: " << rois.size();
-          if (!kf_started)
-          {
-            kf.Init(rois[rois.size() / 2]);
-            kf_started = true;
-            tracked_bb = rois[rois.size() / 2];
-            LOG(INFO) << "Started track for this: " << tracked_bb;
-          }
-          else
-          {
-            cv::Mat_<int> dist(rois.size(), 1);
-
-            LOG(INFO) << "Matching all to ... " << tracked_bb;
-            for (std::size_t i = 0; i < rois.size(); i++)
-            {
-              dist(i, 0) = obz::util::Dist2(
-                    obz::util::RectCenter(tracked_bb),
-                    obz::util::RectCenter(rois[i]));
-            }
-            LOG(INFO) << dist;
-            cv::Mat_<int> match = dist.clone();
-            hs.diag(false);
-            hs.solve(match);
-            LOG(INFO) << match;
-            bool is_matched = false;
-            for (std::size_t i = 0; i < rois.size() && !is_matched; i++)
-            {
-              if (match(i, 0) == 0 && dist(i, 0) < 1e4)
-              {
-                LOG(INFO) << "Found Match: " << i;
-                is_matched = true;
-                tracked_bb = kf.Update(camera_tracker.GetLatestCameraTransform().inv(), rois[i]).bb;
-              }
-            }
-            if (!is_matched)
-            {
-              LOG(INFO) << "No match found";
-              tracked_bb = kf.Update(camera_tracker.GetLatestCameraTransform().inv()).bb;
-            }
-            LOG(INFO) << "Tracking this: " << tracked_bb;
-          }
+          multi_object_tracker.Update(rois,
+                                      frame,
+                                      camera_tracker.GetLatestCameraTransform().inv());
         }
-        else if (kf_started)
-        {
-          tracked_bb = kf.Update(camera_tracker.GetLatestCameraTransform().inv()).bb;
-        }
-
-        object_tracker.Update2(camera_tracker.GetStablizedGray(), // TODO
-                               camera_tracker.GetLatestDiff(),
-                               //                              camera_tracker.GetLatestSOF(),
-                               camera_tracker.GetLatestCameraTransform(),
-                               camera_tracker.GetStablizedRGB());
+//        object_tracker.Update2(camera_tracker.GetStablizedGray(), // TODO
+//                               camera_tracker.GetLatestDiff(),
+//                               //                              camera_tracker.GetLatestSOF(),
+//                               camera_tracker.GetLatestCameraTransform(),
+//                               camera_tracker.GetStablizedRGB());
 
 
         LOG(INFO) << "Tracking status: " << object_tracker.GetStatus();
@@ -286,11 +234,7 @@ int main(int argc, char* argv[]) {
       }
 
       if (display) {
-        // TEMP
-        if (kf_started)
-        {
-          cv::rectangle(frame, tracked_bb, cv::Scalar(0, 0, 255), 5);
-        }
+
         cv::Mat diff_frame = camera_tracker.GetLatestDiff();
         diff_frame.convertTo(diff_frame, CV_8UC1, 5.0);
         //        cv::Mat diff_frame = camera_tracker.GetLatestSOF();
@@ -300,7 +244,8 @@ int main(int argc, char* argv[]) {
         //          cv::imwrite("data/sim.bmp", diff_frame);
         //        }
         cv::Mat debug_frame = camera_tracker.GetStablizedGray();
-        roi_extraction.DrawROIs(frame);
+        //roi_extraction.DrawROIs(frame);
+        multi_object_tracker.DrawTracks(frame);
         object_tracker.DrawParticles(debug_frame);
 
         //        if (camera_tracker.GetTrackedFeaturesCurr().size()) {

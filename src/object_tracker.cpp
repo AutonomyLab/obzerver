@@ -357,7 +357,7 @@ bool PFObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, c
 //                                            vec_cov[0].at<double>(1,1),
 //                                            5.0, 100.0, img_diff.cols, img_diff.rows);
       if (new_bb.area() > 0) {
-        tobject.Update(img_stab, new_bb, true);
+        tobject.Update(new_bb, img_stab, true);
         status = TRACKING_STATUS_TRACKING;
         tracking_counter = 15;
       } else {
@@ -437,7 +437,7 @@ bool PFObjectTracker::Update(const cv::Mat& img_stab, const cv::Mat &img_diff, c
         tobject.Reset();
         status = TRACKING_STATUS_LOST;
       } else {
-        tobject.Update(img_stab, tracked_bb);
+        tobject.Update(tracked_bb, img_stab);
       }
     }
   }

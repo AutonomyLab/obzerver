@@ -80,6 +80,8 @@ public:
   const obz::pts_vec_t& GetTrackedFeaturesCurr() const {return tracked_features_curr;}
   const obz::pts_vec_t& GetTrackedFeaturesPrev() const {return tracked_features_prev;}
   const cv::Mat& GetHomographyOutliers() const {return est_homography_outliers;}
+
+  // t->t-1
   const cv::Mat& GetLatestCameraTransform() const {return camera_transform_hist.latest(); }
 
 };
