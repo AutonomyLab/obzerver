@@ -36,8 +36,6 @@ private:
   float fps_;  // for TObject
   const std::uint32_t max_skipped_frames_;   // To lose track
 
-  obz::alg::Hungarian hungarian_solver_;
-
   void CreateTrack(const cv::Rect& bb, const cv::Mat& frame);
   void DeleteTrack(const std::uint32_t track_index);
 

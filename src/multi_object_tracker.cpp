@@ -15,9 +15,7 @@ MultiObjectTracker::MultiObjectTracker(const std::uint32_t history_len,
     history_len_(history_len),
     fps_(fps),
     max_skipped_frames_(max_skipped_frames)
-{
-  hungarian_solver_.diag(false);
-}
+{}
 
 MultiObjectTracker::~MultiObjectTracker()
 {}
@@ -60,7 +58,9 @@ void MultiObjectTracker::UpdateTrack(const std::uint32_t track_index,
 
   // Update kalman filter w/o prediction, pass the result to TObject
   obz::object_t obj = tracks_[track_index].ekf_ptr->Update(camera_transform);
+  LOG(INFO) << "  with (pre)" << obj.bb;
   obj.bb = obz::util::ClampRect(obj.bb, frame.cols, frame.rows);
+  LOG(INFO) << "  with (post)" << obj.bb;
 
   tracks_[track_index].object_ptr->Update(obj, frame, true);
 }
@@ -73,13 +73,14 @@ void MultiObjectTracker::UpdateTrack(
 {
   CV_Assert(track_index < tracks_.size());
   LOG(INFO) << "[MOT] Updating obz " << track_index << "'s track: " << tracks_[track_index].uid;
-  LOG(INFO) << "  with " << bb;
+  LOG(INFO) << "  with (pre) " << bb;
 
   tracks_[track_index].skipped_frames = 0;
 
   // Update kalman filter with bb, pass the result to TObject
   obz::object_t obj = tracks_[track_index].ekf_ptr->Update(bb, camera_transform);
   obj.bb = obz::util::ClampRect(obj.bb, frame.cols, frame.rows);
+  LOG(INFO) << "  with (post) " << obj.bb;
   tracks_[track_index].object_ptr->Update(obj, frame, true);
 }
 
@@ -129,6 +130,10 @@ void MultiObjectTracker::Update(const rect_vec_t &detections,
   // Since the hungarian matcher changes the matrix in place
   cv::Mat_<int> match = cost.clone();
 
+  // It seems as if the hungarian solver class keeps state,
+  // TODO: Write a reset function
+  obz::alg::Hungarian hungarian_solver_;
+  hungarian_solver_.diag(false);
   hungarian_solver_.solve(match);
 
   LOG(INFO) << "[MOT] match\n" << match;

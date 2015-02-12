@@ -170,8 +170,13 @@ void SelfSimilarity::Update() {
   const std::size_t w = util::quick_median(widths)* 0.5;
   const std::size_t h = util::quick_median(heights) * 0.5;
 
-//  LOG(INFO) << "Median Size: " << w << ", " << h << " @ " << sequence.size();
+  LOG(INFO) << "[SS] Median Size: " << w << ", " << h << " @ " << sequence.size();
 
+  if (w == 0 || h == 0)
+  {
+    LOG(WARNING) << "[SS] Median Size is Zero: " << w << " x " << h;
+    return;
+  }
   cv::Mat m1_resized = cv::Mat::zeros(h, w, CV_8UC1);
   cv3::shift(sim_matrix, sim_matrix, cv::Point2f(1.0,1.0));
 

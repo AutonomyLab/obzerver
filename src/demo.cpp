@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
   }
 
   obz::PFObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
-  obz::MultiObjectTracker multi_object_tracker(90, fps, 10);
+  obz::MultiObjectTracker multi_object_tracker(90, fps, 60);
 
   int opengl_flags = 0;
   if (display)
