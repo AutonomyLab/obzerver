@@ -10,7 +10,7 @@
 #include "obzerver/utility.hpp"
 #include "obzerver/benchmarker.hpp"
 #include "obzerver/camera_tracker.hpp"
-#include "obzerver/object_tracker.hpp"
+//#include "obzerver/object_tracker.hpp"
 #include "obzerver/roi_extraction.hpp"
 #include "obzerver/multi_object_tracker.hpp"
 
@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
   cv::VideoCapture capture;
   cv::Ptr<cv::FeatureDetector> feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
 
-  cv::Ptr<ccv::ICFCascadeClassifier> ccv_icf_ptr = 0;
+//  cv::Ptr<ccv::ICFCascadeClassifier> ccv_icf_ptr = 0;
   //  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK(param_ffd_threshold);
   //  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector(param_max_features);
   obz::CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
@@ -108,21 +108,21 @@ int main(int argc, char* argv[]) {
   LOG(INFO) << "Video Source: " << video_src;
   LOG(INFO) << "Feature Detector: " << feature_detector->name();
 
-  if (!cascade_src.empty())
-  {
-    LOG(INFO) << "Cascade File: " << cascade_src;
-    try
-    {
-      ccv_icf_ptr = new ccv::ICFCascadeClassifier(cascade_src);
-    }
-    catch (const std::exception& e)
-    {
-      LOG(ERROR) << "Initializing cascade classifier failed: " << e.what();
-      ccv_icf_ptr = 0;
-    }
-  }
+//  if (!cascade_src.empty())
+//  {
+//    LOG(INFO) << "Cascade File: " << cascade_src;
+//    try
+//    {
+//      ccv_icf_ptr = new ccv::ICFCascadeClassifier(cascade_src);
+//    }
+//    catch (const std::exception& e)
+//    {
+//      LOG(ERROR) << "Initializing cascade classifier failed: " << e.what();
+//      ccv_icf_ptr = 0;
+//    }
+//  }
 
-  obz::PFObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
+//  obz::PFObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
   obz::MultiObjectTracker multi_object_tracker(90, fps, 60);
 
   int opengl_flags = 0;
@@ -199,23 +199,23 @@ int main(int argc, char* argv[]) {
 //                               camera_tracker.GetStablizedRGB());
 
 
-        LOG(INFO) << "Tracking status: " << object_tracker.GetStatus();
-        if (object_tracker.IsTracking()) {
-          _f = object_tracker.GetObject().GetPeriodicity().GetDominantFrequency(1); // TODO
-          LOG(INFO) << "Object: "
-                    << object_tracker.GetObjectBoundingBox()
-                    << " Periodicity:"
-                    << _f;
-          //LOG(INFO) << "Spectrum: " << cv::Mat(object_tracker.GetObject().GetPeriodicity().GetSpectrum(), false);
-          if (eval_mode && _f >= decision_f_low && _f <= decision_f_high)
-          {
-            cv::imwrite(eval_file,
-                        camera_tracker.GetStablizedGray()(
-                          object_tracker.GetObjectBoundingBox()).clone());
-            LOG(ERROR) << "######## DECISION MADE : " << _f;
-            break;
-          }
-        }
+//        LOG(INFO) << "Tracking status: " << object_tracker.GetStatus();
+//        if (object_tracker.IsTracking()) {
+//          _f = object_tracker.GetObject().GetPeriodicity().GetDominantFrequency(1); // TODO
+//          LOG(INFO) << "Object: "
+//                    << object_tracker.GetObjectBoundingBox()
+//                    << " Periodicity:"
+//                    << _f;
+//          //LOG(INFO) << "Spectrum: " << cv::Mat(object_tracker.GetObject().GetPeriodicity().GetSpectrum(), false);
+//          if (eval_mode && _f >= decision_f_low && _f <= decision_f_high)
+//          {
+//            cv::imwrite(eval_file,
+//                        camera_tracker.GetStablizedGray()(
+//                          object_tracker.GetObjectBoundingBox()).clone());
+//            LOG(ERROR) << "######## DECISION MADE : " << _f;
+//            break;
+//          }
+//        }
 
         //        if (object_tracker.GetStatus() != TRACKING_STATUS_TRACKING) {
         //          if (!self_similariy.IsEmpty()) self_similariy.Reset();
@@ -246,7 +246,7 @@ int main(int argc, char* argv[]) {
         cv::Mat debug_frame = camera_tracker.GetStablizedGray();
         //roi_extraction.DrawROIs(frame);
         multi_object_tracker.DrawTracks(frame);
-        object_tracker.DrawParticles(debug_frame);
+//        object_tracker.DrawParticles(debug_frame);
 
         //        if (camera_tracker.GetTrackedFeaturesCurr().size()) {
         //          drawFeaturePointsTrajectory(frame,
