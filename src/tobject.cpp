@@ -20,13 +20,19 @@ void TObject::Reset() {
   self_similarity.Reset();
 }
 
-void TObject::Update(const object_t &obj, const cv::Mat &frame, const bool reset) {
+void TObject::Update(const object_t &obj,
+                     const cv::Mat &frame,
+                     const bool calc_self_similarity,
+                     const bool reset) {
   if (reset) Reset();
-  //LOG(INFO) << "[TObj] Updating with: " << obj.bb << " | Reset: " << reset;
+  LOG(INFO) << "[TObj] Updating with: " << obj.bb << " | Reset: " << reset;
   obj_hist.push_front(obj);
+
+  // Only calculate the self similarity matrix when:
+  // 1) The caller explicitly asked us to
   self_similarity.Update(frame(obj.bb).clone());
   if (self_similarity.IsFull()) {
-    for (int i = 0; i < self_similarity.GetSimMatrix().cols; i+=15) {
+    for (int i = 0; i < self_similarity.GetSimMatrix().cols; i+=1) {
       // First time, reset the spectrum, then add up the power
       periodicity.Update(self_similarity.GetSimMatrix().row(i), i != 0, false);
     }
@@ -34,9 +40,12 @@ void TObject::Update(const object_t &obj, const cv::Mat &frame, const bool reset
   }
 }
 
-void TObject::Update(const cv::Rect &bb, const cv::Mat &frame, const bool reset) {
+void TObject::Update(const cv::Rect &bb,
+                     const cv::Mat &frame,
+                     const bool calc_self_similarity,
+                     const bool reset) {
   object_t obj(bb);
-  Update(obj, frame, reset);
+  Update(obj, frame, calc_self_similarity, reset);
 }
 
 }  // namespace obz

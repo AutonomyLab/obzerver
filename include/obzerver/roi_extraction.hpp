@@ -51,7 +51,7 @@ public:
 
   const obz::roi_map_t& GetROIsMap() const {return rois_map_;}
 
-  void DrawROIs(cv::Mat& frame);
+  void DrawROIs(cv::Mat& frame, const bool verbose = true);
 };
 
 }  // namespace obz

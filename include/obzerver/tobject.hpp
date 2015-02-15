@@ -14,16 +14,25 @@ protected:
   std::size_t hist_len;
   float fps;
   CircularBuffer<object_t> obj_hist;
-  SelfSimilarity self_similarity;
-  Periodicity periodicity;
+  obz::SelfSimilarity self_similarity;
+  obz::Periodicity periodicity;
 
 public:
   TObject(const std::size_t hist_len, const float fps);
   void Reset();
-  void Update(const object_t& obj, const cv::Mat& frame, const bool reset = false);
-  void Update(const cv::Rect& bb, const cv::Mat& frame, const bool reset = false);
 
-  const object_t& Get(const std::size_t index = 0) const {return obj_hist.at(index); }
+  // calc_self_similarity triggers the expensive SS calculation
+  void Update(const object_t& obj,
+              const cv::Mat& frame,
+              const bool calc_self_similarity = false,
+              const bool reset = false);
+
+  void Update(const cv::Rect& bb,
+              const cv::Mat& frame,
+              const bool calc_self_similarity = false,
+              const bool reset = false);
+
+  const object_t& Get(const std::size_t index = 0) const {return obj_hist[index]; }
   const CircularBuffer<object_t>& GetHist() const {return obj_hist;}
   const CircularBuffer<object_t>& operator()() const {return obj_hist;}
 

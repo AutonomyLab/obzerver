@@ -135,7 +135,7 @@ bool ROIExtraction::Update(
 }
 
 
-void ROIExtraction::DrawROIs(cv::Mat &frame)
+void ROIExtraction::DrawROIs(cv::Mat &frame, const bool verbose)
 {
   for (auto& roi_pair: rois_map_)
   {
@@ -146,12 +146,18 @@ void ROIExtraction::DrawROIs(cv::Mat &frame)
 //    const obz::pts_vec_t& prev_pts = roi_pair.second.prev_pts;
     const cv::Rect& bb = roi_pair.second.bb;
 
+    // sorry!
     const cv::Scalar cluster_color = roi_pair.second.valid ?
-          cv::Scalar(255 * ((cid % 8) & 1), 255 * ((cid % 8) & 2), 255 * ((cid % 8) & 4)) :
+          (verbose ?
+             cv::Scalar(255 * ((cid % 8) & 1), 255 * ((cid % 8) & 2), 255 * ((cid % 8) & 4)) : cv::Scalar(0, 0, 0))
+        :
           cv::Scalar(127, 127, 127);
 
     text << "# " << cid << " MPP " << roi_pair.second.motion_per_pixel << bb;
-    cv::putText(frame, text.str(), cv::Point(bb.x, bb.y - 10), CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
+    if (verbose)
+    {
+      cv::putText(frame, text.str(), cv::Point(bb.x, bb.y - 10), CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
+    }
     cv::rectangle(frame, bb, cluster_color);
     for (auto &p: curr_pts)
     {

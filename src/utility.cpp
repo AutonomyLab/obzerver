@@ -7,7 +7,7 @@ namespace obz
 namespace util
 {
 
-std::string getCvMatTypeStr(const int type) {
+std::string GetCvMatTypeStr(const int type) {
   std::string r;
 
   uchar depth = type & CV_MAT_DEPTH_MASK;
@@ -30,11 +30,11 @@ std::string getCvMatTypeStr(const int type) {
   return r;
 }
 
-void dumpCvMatInfo(const cv::Mat &m) {
-    std::cout << m.size() << " : " << m.dims << " : " << getCvMatTypeStr(m.type()) << std::endl;
+void DumpCvMatInfo(const cv::Mat &m) {
+    std::cout << m.size() << " : " << m.dims << " : " << GetCvMatTypeStr(m.type()) << std::endl;
 }
 
-void drawOpticalFlowVectors(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& cflowmap, int step)
+void DrawOpticalFlowVectors(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& cflowmap, int step)
 {
     for(int y = 0; y < cflowmap.rows; y += step)
         for(int x = 0; x < cflowmap.cols; x += step)
@@ -78,13 +78,13 @@ void DownloadGpuMatToVecUC1(const cv::gpu::GpuMat& d_mat, std::vector<uchar>& ve
 }
 
 
-void drawFeaturePoints(cv::Mat& frame, const std::vector<cv::Point2f>& points, const cv::Scalar& color, int rad) {
+void DrawFeaturePoints(cv::Mat& frame, const std::vector<cv::Point2f>& points, const cv::Scalar& color, int rad) {
     for (unsigned int i = 0; i < points.size(); i++) {
-        cv::circle(frame, points.at(i), rad, color, -1);
+        cv::circle(frame, points[i], rad, color, -1);
     }
 }
 
-void drawWeightedFeaturePoints(
+void DrawWeightedFeaturePoints(
         cv::Mat& frame,
         const std::vector<cv::Point2f>& points,
         const std::vector<cv::Size2f>& sizes,
@@ -106,7 +106,7 @@ void drawWeightedFeaturePoints(
     }
 }
 
-void drawFeaturePointsTrajectory(cv::Mat& frame,
+void DrawFeaturePointsTrajectory(cv::Mat& frame,
                                  const cv::Mat& outliers,
                                  const std::vector<cv::Point2f>& points_prev, const std::vector<cv::Point2f>& points_cur,
                                  int rad,
@@ -126,7 +126,7 @@ void drawFeaturePointsTrajectory(cv::Mat& frame,
     }
 }
 
-void drawFeaturePointsTrajectory(cv::Mat& frame,
+void DrawFeaturePointsTrajectory(cv::Mat& frame,
                                  const std::vector<cv::Point2f>& points_prev,
                                  const std::vector<cv::Point2f>& points_cur,
                                  int rad,
@@ -140,7 +140,7 @@ void drawFeaturePointsTrajectory(cv::Mat& frame,
     }
 }
 
-void drawFlowField(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& flowField,
+void DrawFlowField(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& flowField,
                    bool auto_max, float* max_x, float* max_y)
 {
     if (flowField.channels() == 3)
@@ -214,7 +214,7 @@ void drawFlowField(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& flowFi
     }
 }
 
-void drawOpticalFlowScatter(const cv::Mat& u,
+void DrawOpticalFlowScatter(const cv::Mat& u,
                             const cv::Mat& v,
                             cv::Mat& frame,
                             const float max_val,

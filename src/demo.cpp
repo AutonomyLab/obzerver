@@ -99,8 +99,13 @@ int main(int argc, char* argv[]) {
   //  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK(param_ffd_threshold);
   //  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector(param_max_features);
   obz::CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
-  obz::ROIExtraction roi_extraction(0.04, 10, cv::Size(0, 0),
-                                    cv::Size(200, 200), 1.0, 1.1, 1.0, 2);
+  obz::ROIExtraction roi_extraction(0.04, 10,
+                                    cv::Size(10, 10),
+                                    cv::Size(100, 100),
+                                    1.0,  // Min Motion Per Pixel
+                                    1.1,  // Inflation: Width
+                                    1.0,  // Inflation: Height
+                                    2);   // Num Threads
   obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);
 
 
@@ -123,7 +128,7 @@ int main(int argc, char* argv[]) {
 //  }
 
 //  obz::PFObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
-  obz::MultiObjectTracker multi_object_tracker(90, fps, 60);
+  obz::MultiObjectTracker multi_object_tracker(120, fps, 30);
 
   int opengl_flags = 0;
   if (display)
@@ -244,7 +249,7 @@ int main(int argc, char* argv[]) {
         //          cv::imwrite("data/sim.bmp", diff_frame);
         //        }
         cv::Mat debug_frame = camera_tracker.GetStablizedGray();
-        //roi_extraction.DrawROIs(frame);
+//        roi_extraction.DrawROIs(frame, false);
         multi_object_tracker.DrawTracks(frame);
 //        object_tracker.DrawParticles(debug_frame);
 
@@ -275,10 +280,11 @@ int main(int argc, char* argv[]) {
       frame_counter++;
       ticker.reset();
     }
-  } catch (const cv::Exception& ex) {
-    LOG(ERROR) << "Exception: " << ex.what();
-    if (capture.isOpened()) capture.release();
-    LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
+  } catch (const std::runtime_error& e) {
+//  } catch (const cv::Exception& ex) {
+//    LOG(ERROR) << "Exception: " << ex.what();
+//    if (capture.isOpened()) capture.release();
+//    LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
     return 1;
   }
   if (capture.isOpened()) capture.release();

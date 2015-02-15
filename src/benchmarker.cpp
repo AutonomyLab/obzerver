@@ -34,11 +34,11 @@ std::string StepBenchmarker::getstr(const bool clear_screen) const {
   double total = 0;
   for (unsigned int i = 0; i < items.size(); i++) {
     stream << std::setw(30) << std::left
-           << items.at(i).first
+           << items[i].first
            << std::setw(10)
-           << items.at(i).second << " (ms)"
+           << items[i].second << " (ms)"
            << std::endl;
-    total += items.at(i).second;
+    total += items[i].second;
   }
   stream << std::setw(30) << std::left
          << "[Total]" << std::setw(10) << total << " (ms)" << std::endl;

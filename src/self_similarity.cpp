@@ -40,9 +40,19 @@ public:
   {
     cv::Mat buff;
     cv::Mat m2;
-    for (int i = range.start; i < range.end; i++) {
-      cv::resize(seq.at(i), m2, img_sz, 0.0, 0.0, cv::INTER_CUBIC);
-      const float s = SelfSimilarity::CalcFramesSimilarity(m1, m2, buff, (unsigned int) i, false);
+
+    float s;
+    std::size_t count = 0;
+    for (int i = range.start; i < range.end; i++) {      
+      // Used for non-resizable BBs
+      // Max-non-SelfSimilarity when using TM_SQ_DIFF
+      s = 65025;
+      if (seq[i].size().width && seq[i].size().height)
+      {
+        count++;
+        cv::resize(seq[i], m2, img_sz, 0.0, 0.0, cv::INTER_NEAREST);
+        s = SelfSimilarity::CalcFramesSimilarity(m1, m2, buff, (unsigned int) i, false);
+      }
       sim.at<float>(0, i) = s;
       sim.at<float>(i, 0) = s;
     }
@@ -81,16 +91,28 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
                                            const unsigned int index,
                                            bool debug_mode = false)
 {
+#if 0
+  CV_Assert(m1.size() == m2.size());
+  cv::matchTemplate(m1, m2, buff, CV_TM_SQDIFF);
+  double max_val = 0.0, min_val = 0.0;
+  cv::Point max_loc, min_loc;
+  cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
+#else
   cv::Mat img, tmpl;
   int orig_width, orig_height;
   if ( (m1.cols * m1.rows) >= (m2.cols * m2.rows)) {
-    m2.copyTo(tmpl);
-    cv::copyMakeBorder(m1, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+    //m2.copyTo(tmpl);
+    tmpl = m2;
+//    cv::copyMakeBorder(m1, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+
+    // TODO: Parameterize this
+    cv::copyMakeBorder(m1, img, 5, 5, 5, 5, cv::BORDER_WRAP);
     orig_width = m1.cols;
     orig_height = m1.rows;
   } else {
-    m1.copyTo(tmpl);
-    cv::copyMakeBorder(m2, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+    //m1.copyTo(tmpl);
+    tmpl = m1;
+    cv::copyMakeBorder(m2, img, 5, 5, 5, 5, cv::BORDER_WRAP);
     orig_width = m2.cols;
     orig_height = m2.rows;
   }
@@ -148,47 +170,57 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
     cv::imwrite(ss.str(), m2);
 
   }
+#endif
 
   return min_val;
 }
 
-void SelfSimilarity::Update(const cv::Mat& m, const bool reset) {
-  if (reset) Reset();
+void SelfSimilarity::Update(const cv::Mat& m) {
   sequence.push_front(m);
-  Update();
+  Calculate();
 }
 
-void SelfSimilarity::Update() {
+void SelfSimilarity::Calculate() {
   widths.resize(sequence.size());
   heights.resize(sequence.size());
   std::size_t i = 0;
   for (mseq_t::iterator it = sequence.begin(); it != sequence.end(); it++, i++) {
-    widths[i] = sequence.at(i).size().width;
-    heights[i] = sequence.at(i).size().height;
+    widths[i] = it->size().width;
+    heights[i] = it->size().height;
   }
 
-  const std::size_t w = util::quick_median(widths)* 0.5;
-  const std::size_t h = util::quick_median(heights) * 0.5;
+  std::size_t med_w = util::quick_median(widths);
+  std::size_t med_h = util::quick_median(heights);
 
-  LOG(INFO) << "[SS] Median Size: " << w << ", " << h << " @ " << sequence.size();
+  LOG(INFO) << "[SS] Median Size: " << med_w << ", " << med_h << " @ " << sequence.size();
 
-  if (w == 0 || h == 0)
+  // TODO: PUSH NULL SS
+  if (med_w == 0 || med_h == 0)
   {
-    LOG(WARNING) << "[SS] Median Size is Zero: " << w << " x " << h;
+    LOG(WARNING) << "[SS] Median Size is Zero: " << med_w << " x " << med_h;
     return;
   }
-  cv::Mat m1_resized = cv::Mat::zeros(h, w, CV_8UC1);
+
+  const std::size_t max_wh = std::max(med_w, med_h);
+  if (max_wh > 50)
+  {
+    med_w *= (50.0 / max_wh);
+    med_h *= (50.0 / max_wh);
+  }
+
+  cv::Mat m1_resized = cv::Mat::zeros(med_h, med_w, CV_8UC1);
   cv3::shift(sim_matrix, sim_matrix, cv::Point2f(1.0,1.0));
 
 #if 1
-  cv::resize(sequence.at(0), m1_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
+  if (!sequence[0].size().area()) return;
+  cv::resize(sequence[0], m1_resized, cv::Size2d(med_w, med_h), 0, 0, cv::INTER_NEAREST);
   cv::parallel_for_(
         cv::Range(0, sequence.size() - 1),
         ParallelFrameSimilarity(
           sequence,
           sim_matrix,
           m1_resized,
-          cv::Size(w,h)
+          cv::Size(med_w,med_h)
           ), 4 // Use Four Threads
         );
 #else

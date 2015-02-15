@@ -100,28 +100,28 @@ T quick_median(std::vector<T> &v)
 }
 
 // From: https://github.com/Itseez/opencv/blob/master/samples/cpp/fback.cpp
-void drawOpticalFlowVectors(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& cflowmap, int step, const cv::Scalar& color);
-void drawFeaturePoints(cv::Mat& frame, const std::vector<cv::Point2f>& points, const cv::Scalar& color, int rad = 2);
-void drawWeightedFeaturePoints(cv::Mat& frame,
+void DrawOpticalFlowVectors(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& cflowmap, int step, const cv::Scalar& color);
+void DrawFeaturePoints(cv::Mat& frame, const std::vector<cv::Point2f>& points, const cv::Scalar& color, int rad = 2);
+void DrawWeightedFeaturePoints(cv::Mat& frame,
         const std::vector<cv::Point2f>& points,
         const std::vector<cv::Size2f>& sizes,
         const std::vector<double>& weights,
         const cv::Scalar& color);
 
-void drawFeaturePointsTrajectory(cv::Mat& frame,
+void DrawFeaturePointsTrajectory(cv::Mat& frame,
                                  const cv::Mat& outliers,
                                  const std::vector<cv::Point2f>& points_prev, const std::vector<cv::Point2f>& points_cur,
                                  int rad,
                                  const cv::Scalar& color_prev, const cv::Scalar& color_cur, const cv::Scalar& color_line);
 
-void drawFeaturePointsTrajectory(cv::Mat& frame,
+void DrawFeaturePointsTrajectory(cv::Mat& frame,
                                  const std::vector<cv::Point2f>& points_prev, const std::vector<cv::Point2f>& points_cur,
                                  int rad,
                                  const cv::Scalar& color_prev, const cv::Scalar& color_cur, const cv::Scalar& color_line);
 
-void drawFlowField(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& flowField,
+void DrawFlowField(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Mat& flowField,
                    bool auto_max = false, float* max_x = 0, float* max_y = 0);
-void drawOpticalFlowScatter(const cv::Mat& u,
+void DrawOpticalFlowScatter(const cv::Mat& u,
                             const cv::Mat& v,
                             cv::Mat& frame,
                             const float max_val,
@@ -129,9 +129,9 @@ void drawOpticalFlowScatter(const cv::Mat& u,
                             const unsigned int offset_x = 0,
                             const unsigned int offset_y = 0);
 
-std::string getCvMatTypeStr(const int type);
+std::string GetCvMatTypeStr(const int type);
 
-void dumpCvMatInfo(const cv::Mat& m);
+void DumpCvMatInfo(const cv::Mat& m);
 
 void DownloadGpuMatToVecFC2(const cv::gpu::GpuMat& d_mat, std::vector<cv::Point2f>& vec);
 void DownloadGpuMatToVecUC1(const cv::gpu::GpuMat& d_mat, std::vector<uchar>& vec);

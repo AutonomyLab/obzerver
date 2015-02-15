@@ -27,12 +27,15 @@ private:
 
   StepBenchmarker& ticker;
 
+  // This is the time-consuming part that does the actual calculation
+  void Calculate();
 public:
   SelfSimilarity(const std::size_t hist_len, const bool debug_mode = false);
   static float CalcFramesSimilarity(const cv::Mat &m1, const cv::Mat &m2, cv::Mat &buff, const unsigned int index, bool debug_mode);
 
-  void Update();
-  void Update(const cv::Mat &m, const bool reset = false);
+
+  // Update the internal circular buffer
+  void Update(const cv::Mat &m);
 
   const cv::Mat& GetSimMatrix() const;
   cv::Mat GetSimMatrixRendered() const;

@@ -60,7 +60,7 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
 
   detected_features_prev.resize(pts_to_copy);
   for (size_t id = 0; id < pts_to_copy; id++) {
-    detected_features_prev[id] = kpts.at(id).pt;
+    detected_features_prev[id] = kpts[id].pt;
   }
 
   tracking_status.clear();
@@ -159,7 +159,7 @@ void CameraTracker::UpdateDiff() {
     //cv::Mat trans_to_current = camera_transform_hist_acc.at(i) * trans_to_histlen;
     //cv::warpPerspective(diff_hist.at(i), dummy, trans_to_current, diff_hist.at(i).size());
     //cv::add(cache_frame_diff, dummy, cache_frame_diff, cv::noArray(), 1);
-    cv::add(cache_frame_diff, diff_hist.at(i), cache_frame_diff, cv::noArray(), 1);
+    cv::add(cache_frame_diff, diff_hist[i], cache_frame_diff, cv::noArray(), 1);
     //cv::bitwise_and(cache_frame_diff, dummy, cache_frame_diff);
   }
 
