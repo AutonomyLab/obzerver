@@ -1,6 +1,7 @@
 #ifndef COMMON_TYPES_HPP
 #define COMMON_TYPES_HPP
 
+#include "obzerver/circular_buffer.hpp"
 #include <opencv2/core/core.hpp>
 
 #include <cstdint>
@@ -11,6 +12,7 @@ namespace obz
 {
 
 typedef std::vector<cv::Point2f>  pts_vec_t;
+typedef CircularBuffer<cv::Mat> mseq_t;
 
 struct object_t {
   cv::Rect bb;

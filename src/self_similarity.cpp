@@ -16,7 +16,8 @@ namespace obz
 
 class ParallelFrameSimilarity: public cv::ParallelLoopBody {
 private:
-  CircularBuffer<cv::Mat>& seq;
+  std::size_t t1;
+  const obz::mseq_t& seq;
   cv::Mat& sim;
   cv::Mat m1;
   std::size_t sz;
@@ -24,15 +25,17 @@ private:
 
 public:
   ParallelFrameSimilarity(
-      CircularBuffer<cv::Mat>& _seq,
+      std::size_t& _t1,
+      const obz::mseq_t& _seq,
       cv::Mat& _sim,
       const cv::Mat& _ff,
-      const cv::Size& _img_sz)
-    : seq(_seq),
-      sim(_sim),
-      m1(_ff),
-      sz(_seq.size()),
-      img_sz(_img_sz)
+      const cv::Size& _img_sz) :
+    t1(_t1),
+    seq(_seq),
+    sim(_sim),
+    m1(_ff),
+    sz(_seq.size()),
+    img_sz(_img_sz)
   {
   }
 
@@ -53,36 +56,18 @@ public:
         cv::resize(seq[i], m2, img_sz, 0.0, 0.0, cv::INTER_NEAREST);
         s = SelfSimilarity::CalcFramesSimilarity(m1, m2, buff, (unsigned int) i, false);
       }
-      sim.at<float>(0, i) = s;
-      sim.at<float>(i, 0) = s;
+      sim.at<float>(t1, i) = s;
+      sim.at<float>(i, t1) = s;
     }
   }
 };
 
 SelfSimilarity::SelfSimilarity(const std::size_t hist_len, const bool debug_mode):
-  hist_len(hist_len),
   debug_mode(debug_mode),
-  sequence(hist_len),
   sim_matrix(cv::Mat::zeros(hist_len, hist_len, CV_32F)),
   ticker(StepBenchmarker::GetInstance())
 {
   ;
-}
-
-std::size_t SelfSimilarity::GetHistoryLen() const {
-  return sequence.size();
-}
-
-void SelfSimilarity::Reset() {
-  sequence.clear();
-}
-
-bool SelfSimilarity::IsFull() const {
-  return (sequence.size() == hist_len);
-}
-
-bool SelfSimilarity::IsEmpty() const {
-  return (sequence.size() == 0);
 }
 
 float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
@@ -175,16 +160,13 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
   return min_val;
 }
 
-void SelfSimilarity::Update(const cv::Mat& m) {
-  sequence.push_front(m);
-  Calculate();
-}
 
-void SelfSimilarity::Calculate() {
+
+void SelfSimilarity::Calculate(const obz::mseq_t& sequence) {
   widths.resize(sequence.size());
   heights.resize(sequence.size());
   std::size_t i = 0;
-  for (mseq_t::iterator it = sequence.begin(); it != sequence.end(); it++, i++) {
+  for (mseq_t::const_iterator it = sequence.begin(); it != sequence.end(); it++, i++) {
     widths[i] = it->size().width;
     heights[i] = it->size().height;
   }
@@ -208,38 +190,42 @@ void SelfSimilarity::Calculate() {
     med_h *= (50.0 / max_wh);
   }
 
-  cv::Mat m1_resized = cv::Mat::zeros(med_h, med_w, CV_8UC1);
-  cv3::shift(sim_matrix, sim_matrix, cv::Point2f(1.0,1.0));
+  for (std::size_t t1 = 0; t1 < sequence.size(); t1++)
+  {
+    cv::Mat m1_resized = cv::Mat::zeros(med_h, med_w, CV_8UC1);
+//    cv3::shift(sim_matrix, sim_matrix, cv::Point2f(1.0,1.0));
 
-#if 1
-  if (!sequence[0].size().area()) return;
-  cv::resize(sequence[0], m1_resized, cv::Size2d(med_w, med_h), 0, 0, cv::INTER_NEAREST);
-  cv::parallel_for_(
-        cv::Range(0, sequence.size() - 1),
-        ParallelFrameSimilarity(
-          sequence,
-          sim_matrix,
-          m1_resized,
-          cv::Size(med_w,med_h)
-          ), 4 // Use Four Threads
-        );
-#else
-  cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
-  cv::Mat buff = cv::Mat::zeros(h, w, CV_8UC1);
-  cv::resize(sequence.at(0), m1_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
+  #if 1
+    if (!sequence[t1].size().area()) return;
+    cv::resize(sequence[t1], m1_resized, cv::Size2d(med_w, med_h), 0, 0, cv::INTER_NEAREST);
+    cv::parallel_for_(
+          cv::Range(0, sequence.size() - 1),
+          ParallelFrameSimilarity(
+            t1,
+            sequence,
+            sim_matrix,
+            m1_resized,
+            cv::Size(med_w,med_h)
+            ), 4 // Use Four Threads
+          );
+  #else
+    cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
+    cv::Mat buff = cv::Mat::zeros(h, w, CV_8UC1);
+    cv::resize(sequence.at(0), m1_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
 
-  for (std::size_t t1 = 0; t1 < sequence.size(); t1++) {
-    cv::resize(sequence.at(t1), m2_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
-    //const float s = CalcFramesSimilarity(sequence.at(0), sequence.at(t1), buff, t1);
-    const float s = CalcFramesSimilarity(m1_resized, m2_resized, buff, t1);
-    sim_matrix.at<float>(0, t1) = s;
-    sim_matrix.at<float>(t1, 0) = s;
+    for (std::size_t t1 = 0; t1 < sequence.size(); t1++) {
+      cv::resize(sequence.at(t1), m2_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
+      //const float s = CalcFramesSimilarity(sequence.at(0), sequence.at(t1), buff, t1);
+      const float s = CalcFramesSimilarity(m1_resized, m2_resized, buff, t1);
+      sim_matrix.at<float>(0, t1) = s;
+      sim_matrix.at<float>(t1, 0) = s;
+    }
+  #endif
   }
-#endif
 
   if (debug_mode) {
     LOG(INFO) << sim_matrix;
-    WriteToDisk("./data");
+    WriteToDisk(sequence, "./data");
   }
 
   ticker.tick("SS_Self_Similarity_Update");
@@ -261,7 +247,10 @@ cv::Mat SelfSimilarity::GetSimMatrixRendered() const {
   return render;
 }
 
-void SelfSimilarity::WriteToDisk(const std::string& path, const std::string& prefix) const {
+void SelfSimilarity::WriteToDisk(const mseq_t &sequence,
+                                 const std::string& path,
+                                 const std::string& prefix) const
+{
   unsigned int frame_counter = 0;
   for (mseq_t::const_reverse_iterator it = sequence.rbegin(); it != sequence.rend(); it++, frame_counter++) {
     std::stringstream ss;

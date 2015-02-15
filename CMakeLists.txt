@@ -71,7 +71,7 @@ set(LIBS ${LIBS} ${GLOG_LIBRARIES})
 # -march=corei7-avx -mtune=corei7-avx -mno-avx -mno-aes
 # -fopenmp is because of upstram dbscan, fix it
 set(CMAKE_OPT_FLAGS "-march=native -ffast-math -funroll-loops")
-set(CMAKE_CXX_FLAGS "${CMAKE_OPT_FLAGS} ${CMAKE_CXX_FLAGS} ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER} -std=c++0x -Wall -Wextra -fopenmp -march=native")
+set(CMAKE_CXX_FLAGS "${CMAKE_OPT_FLAGS} ${CMAKE_CXX_FLAGS} ${OpenCV_CXXFLAGS_OTHER} ${GLOG_CXXFLAGS_OTHER} -std=c++11 -Wall -Wextra -fopenmp -march=native")
 
 ## Build and Configure External Dependencies (Modified)
 

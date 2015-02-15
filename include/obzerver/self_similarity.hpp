@@ -5,6 +5,7 @@
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/video/background_segm.hpp"
 
+#include "obzerver/common_types.hpp"
 #include "obzerver/circular_buffer.hpp"
 #include "obzerver/benchmarker.hpp"
 
@@ -13,12 +14,8 @@ namespace obz
 
 class SelfSimilarity {
 
-  typedef CircularBuffer<cv::Mat> mseq_t;
-
 private:
-  std::size_t hist_len;
-  bool debug_mode;
-  mseq_t sequence;
+  bool debug_mode;  
   cv::Mat sim_matrix;
 
   // For median
@@ -27,25 +24,22 @@ private:
 
   StepBenchmarker& ticker;
 
-  // This is the time-consuming part that does the actual calculation
-  void Calculate();
 public:
   SelfSimilarity(const std::size_t hist_len, const bool debug_mode = false);
-  static float CalcFramesSimilarity(const cv::Mat &m1, const cv::Mat &m2, cv::Mat &buff, const unsigned int index, bool debug_mode);
+  static float CalcFramesSimilarity(const cv::Mat &m1,
+                                    const cv::Mat &m2,
+                                    cv::Mat &buff,
+                                    const unsigned int index,
+                                    bool debug_mode);
 
-
-  // Update the internal circular buffer
-  void Update(const cv::Mat &m);
+  void Calculate(const obz::mseq_t& sequence);
 
   const cv::Mat& GetSimMatrix() const;
   cv::Mat GetSimMatrixRendered() const;
-  void WriteToDisk(const std::string &path, const std::string &prefix = std::string("seq")) const;
-
-  bool IsEmpty() const;
-  bool IsFull() const;
-  void Reset();
-
-  std::size_t GetHistoryLen() const;
+  void WriteToDisk(
+      const obz::mseq_t& sequence,
+      const std::string &path,
+      const std::string &prefix = std::string("seq")) const;
 };
 
 }  // namespace obz

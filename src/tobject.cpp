@@ -9,15 +9,16 @@ TObject::TObject(const std::size_t hist_len, const float fps)
     hist_len(hist_len),
     fps(fps),
     obj_hist(hist_len),
-    self_similarity(hist_len, false), // TODO
-    periodicity(hist_len, fps)
+    sequence(hist_len)
+//    self_similarity(hist_len, false), // TODO
+//    periodicity(hist_len, fps)
 {
   ;
 }
 
 void TObject::Reset() {
   obj_hist.clear();
-  self_similarity.Reset();
+//  self_similarity.Reset();
 }
 
 void TObject::Update(const object_t &obj,
@@ -27,17 +28,18 @@ void TObject::Update(const object_t &obj,
   if (reset) Reset();
   LOG(INFO) << "[TObj] Updating with: " << obj.bb << " | Reset: " << reset;
   obj_hist.push_front(obj);
+  sequence.push_front(frame(obj.bb).clone());
 
   // Only calculate the self similarity matrix when:
   // 1) The caller explicitly asked us to
-  self_similarity.Update(frame(obj.bb).clone());
-  if (self_similarity.IsFull()) {
-    for (int i = 0; i < self_similarity.GetSimMatrix().cols; i+=1) {
-      // First time, reset the spectrum, then add up the power
-      periodicity.Update(self_similarity.GetSimMatrix().row(i), i != 0, false);
-    }
-    LOG(INFO) << "Avg Spectrum: " << cv::Mat(periodicity.GetSpectrum(), false).t();
-  }
+//  self_similarity.Update(frame(obj.bb).clone());
+//  if (self_similarity.IsFull()) {
+//    for (int i = 0; i < self_similarity.GetSimMatrix().cols; i+=1) {
+//      // First time, reset the spectrum, then add up the power
+//      periodicity.Update(self_similarity.GetSimMatrix().row(i), i != 0, false);
+//    }
+//    LOG(INFO) << "Avg Spectrum: " << cv::Mat(periodicity.GetSpectrum(), false).t();
+//  }
 }
 
 void TObject::Update(const cv::Rect &bb,

@@ -14,8 +14,9 @@ protected:
   std::size_t hist_len;
   float fps;
   CircularBuffer<object_t> obj_hist;
-  obz::SelfSimilarity self_similarity;
-  obz::Periodicity periodicity;
+  obz::mseq_t sequence;
+//  obz::SelfSimilarity self_similarity;
+//  obz::Periodicity periodicity;
 
 public:
   TObject(const std::size_t hist_len, const float fps);
@@ -35,9 +36,10 @@ public:
   const object_t& Get(const std::size_t index = 0) const {return obj_hist[index]; }
   const CircularBuffer<object_t>& GetHist() const {return obj_hist;}
   const CircularBuffer<object_t>& operator()() const {return obj_hist;}
+  const obz::mseq_t& GetSequence() const {return sequence;}
 
-  const Periodicity& GetPeriodicity() const {return periodicity; }
-  const SelfSimilarity& GetSelfSimilarity() const {return self_similarity; }
+//  const Periodicity& GetPeriodicity() const {return periodicity; }
+//  const SelfSimilarity& GetSelfSimilarity() const {return self_similarity; }
 };
 
 }  // namespace obz

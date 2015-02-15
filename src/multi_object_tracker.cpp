@@ -6,8 +6,80 @@
 
 #include <cstdlib>  // for rand()
 #include <sstream>
+#include <memory>
 namespace obz
 {
+
+PeriodicityWorkerThread::PeriodicityWorkerThread(MultiObjectTracker &mot) :
+  mot(mot)
+{
+  LOG(INFO) << "[PT] cnst";
+}
+
+bool MultiObjectTracker::SetTrack(std::uint32_t track_index)
+{
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (focus_track_index_ != -1) return false;
+  focus_track_index_ = track_index;
+  LOG(INFO) << "[PT] New track set to index: " << tracks_[focus_track_index_].uid;
+  condition_.notify_one();
+}
+
+bool MultiObjectTracker::ClearTrack()
+{
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (focus_track_index_ == -1) return false;
+
+  LOG(INFO) << "[PT] Request to clear terminate current track: "
+            << tracks_[focus_track_index_].uid;
+  clear_track_ = true;
+  condition_.wait(lock);
+  LOG(INFO) << "[PT] Wait finished";
+  focus_track_index_ = 0;
+  return true;
+}
+
+void MultiObjectTracker::Terminate()
+{
+  LOG(INFO) << "[PT] Sending request to terminate the thread ";
+  terminate_ = true;
+}
+
+void PeriodicityWorkerThread::operator ()()
+{
+  // The copy operator below will resize this
+  obz::mseq_t seq(0);
+  while (!mot.terminate_)
+  {
+    {
+      std::unique_lock<std::mutex> lock(mot.mutex_);
+      while (!mot.terminate_ && mot.focus_track_index_ == -1)
+      {
+        LOG(INFO) << "[PT] Waiting ...";
+        mot.condition_.wait(lock);
+      }
+
+      seq = mot.tracks_[mot.focus_track_index_].object_ptr->GetSequence();
+      LOG(INFO) << "[PT] () Track: " <<  mot.tracks_[mot.focus_track_index_].uid
+                << " Sequence Size: " << seq.size();
+    }
+
+    std::unique_ptr<obz::SelfSimilarity> ss_ptr
+        (new obz::SelfSimilarity(seq.size(), false));
+
+    LOG(INFO) << "[PT] () Running SS ...";
+    ss_ptr->Calculate(seq);
+    LOG(INFO) << "[PT] () Done. Clearing the track";
+    mot.focus_track_index_ = -1;
+  }
+  LOG(INFO) << "[PT] Gracefully terminated";
+}
+
+/**********************************************/
+/**********************************************/
+/**********************************************/
+/**********************************************/
+/**********************************************/
 
 MultiObjectTracker::MultiObjectTracker(const std::uint32_t history_len,
                                        const float fps,
@@ -16,11 +88,18 @@ MultiObjectTracker::MultiObjectTracker(const std::uint32_t history_len,
     history_len_(history_len),
     fps_(fps),
     max_skipped_frames_(max_skipped_frames),
-    focus_track_index_(-1)
-{}
+    focus_track_index_(-1),
+    per_thread_(std::thread(obz::PeriodicityWorkerThread(*this)))
+{
+  // http://stackoverflow.com/a/22687003
+//  periodicity_thread_ = std::thread{
+//      [] {obz::PeriodicityThread {} (); }
+//  };
+}
 
 MultiObjectTracker::~MultiObjectTracker()
-{}
+{
+}
 
 void MultiObjectTracker::CreateTrack(const cv::Rect &bb, const cv::Mat &frame)
 {
@@ -37,6 +116,8 @@ void MultiObjectTracker::CreateTrack(const cv::Rect &bb, const cv::Mat &frame)
   track.object_ptr->Update(bb, frame, false, false);
   track.ekf_ptr = cv::Ptr<obz::ExKalmanFilter>(new obz::ExKalmanFilter(bb));
   next_uid_++;
+
+//  if (IsFree()) SetTrack(tracks_.size() - 1);
 }
 
 void MultiObjectTracker::DeleteTrack(const std::uint32_t track_index)
@@ -46,8 +127,10 @@ void MultiObjectTracker::DeleteTrack(const std::uint32_t track_index)
 
   if (track_index == focus_track_index_)
   {
-    LOG(WARNING) << "[MOT] !!! Focus was on this track";
-    focus_track_index_ = 0;
+    LOG(WARNING) << "[MOT] !!! Focus was on this track. SEGFAULT COMING";
+//    ClearTrack();
+//    std::unique_lock<std::mutex> lock(mutex_);
+//    condition_.wait(lock, []{return focus_track_index_ == -1;});
   }
 
   // Check dstr calls
@@ -74,6 +157,11 @@ void MultiObjectTracker::UpdateTrack(const std::uint32_t track_index,
                                           frame,
                                           calc_self_similarity,
                                           false);
+
+  if (IsFree())
+  {
+    SetTrack(track_index);
+  }
 }
 
 void MultiObjectTracker::UpdateTrack(
@@ -98,6 +186,11 @@ void MultiObjectTracker::UpdateTrack(
                                           frame,
                                           calc_self_similarity,
                                           false);
+
+  if (IsFree())
+  {
+    SetTrack(track_index);
+  }
 }
 
 void MultiObjectTracker::Update(const rect_vec_t &detections,
@@ -231,17 +324,17 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame)
     const cv::Scalar track_color =
           cv::Scalar(255 * ((uid % 8) & 1), 255 * ((uid % 8) & 2), 255 * ((uid % 8) & 4));
 
-    text << "# " << uid
-         << " " << tracks_[t].object_ptr->GetPeriodicity().GetDominantFrequency();
+    text << "# " << uid;
+//         << " " << tracks_[t].object_ptr->GetPeriodicity().GetDominantFrequency();
 //         << " " << bb;
 
     cv::putText(frame, text.str(), cv::Point(bb.x, bb.y - 10), CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
     cv::rectangle(frame, bb, track_color);
 
-    cv::Mat ss_mat = tracks_[t].object_ptr->GetSelfSimilarity().GetSimMatrixRendered();
-    const cv::Rect roi = util::ClampRect(cv::Rect(bb.x, bb.y, ss_mat.cols, ss_mat.rows),
-                                         frame.cols, frame.rows);
-    cv::cvtColor(ss_mat, ss_mat, CV_GRAY2BGR);
+//    cv::Mat ss_mat = tracks_[t].object_ptr->GetSelfSimilarity().GetSimMatrixRendered();
+//    const cv::Rect roi = util::ClampRect(cv::Rect(bb.x, bb.y, ss_mat.cols, ss_mat.rows),
+//                                         frame.cols, frame.rows);
+//    cv::cvtColor(ss_mat, ss_mat, CV_GRAY2BGR);
 //    if (roi.area())
 //    {
 //      ss_mat(cv::Rect(0, 0, roi.width, roi.height)).copyTo(frame(roi));
@@ -249,25 +342,25 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame)
     //frame(roi) = ss_mat(cv::Rect(0, 0, roi.width, roi.height)).clone();
     //cv::rectangle(frame, roi, cv::Scalar(100,100,100));
 
-    text.str("");
-    text << "./sim/track-" << tracks_[t].uid << "-ss.png";
-    cv::imwrite(text.str(), ss_mat);
+//    text.str("");
+//    text << "./sim/track-" << tracks_[t].uid << "-ss.png";
+//    cv::imwrite(text.str(), ss_mat);
 
     /* TEMP */
-    cv::Mat ss_mat_copy, ss_auto_cc;
-    cv::copyMakeBorder(ss_mat, ss_mat_copy, ss_mat.rows/2, ss_mat.rows/2, ss_mat.cols/2, ss_mat.cols/2, cv::BORDER_WRAP);
-    cv::matchTemplate(ss_mat_copy, ss_mat, ss_auto_cc, CV_TM_CCORR_NORMED);
-    double max_val = 0.0, min_val = 0.0;
-    cv::minMaxLoc(ss_auto_cc, &min_val, &max_val);
-    cv::Mat ac_render;
-    if (max_val > 0.0) {
-      ss_auto_cc.convertTo(ac_render, CV_8UC1, 255.0 / max_val);
-    } else {
-      ac_render = cv::Mat::zeros(ss_auto_cc.size(), CV_8UC1);
-    }
-    text.str("");
-    text << "./sim/track-" << tracks_[t].uid << "-ss-ac.png";
-    cv::imwrite(text.str(), ac_render);
+//    cv::Mat ss_mat_copy, ss_auto_cc;
+//    cv::copyMakeBorder(ss_mat, ss_mat_copy, ss_mat.rows/2, ss_mat.rows/2, ss_mat.cols/2, ss_mat.cols/2, cv::BORDER_WRAP);
+//    cv::matchTemplate(ss_mat_copy, ss_mat, ss_auto_cc, CV_TM_CCORR_NORMED);
+//    double max_val = 0.0, min_val = 0.0;
+//    cv::minMaxLoc(ss_auto_cc, &min_val, &max_val);
+//    cv::Mat ac_render;
+//    if (max_val > 0.0) {
+//      ss_auto_cc.convertTo(ac_render, CV_8UC1, 255.0 / max_val);
+//    } else {
+//      ac_render = cv::Mat::zeros(ss_auto_cc.size(), CV_8UC1);
+//    }
+//    text.str("");
+//    text << "./sim/track-" << tracks_[t].uid << "-ss-ac.png";
+//    cv::imwrite(text.str(), ac_render);
   }
 }
 
