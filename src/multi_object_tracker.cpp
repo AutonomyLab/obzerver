@@ -215,33 +215,6 @@ void MultiObjectTracker::Update(const rect_vec_t &detections,
     }
   }
 
-  // Update focus
-
-  if (focus_track_index_ == -1)
-  {
-    if (tracks_.size())
-    {
-      focus_track_index_ = rand() % tracks_.size();
-      tracks_[focus_track_index_].object_ptr->Reset();
-      LOG(INFO) << "[MOT] Set focus on " << tracks_[focus_track_index_].uid;
-    }
-  }
-
-  if (focus_track_index_ != -1)
-  {
-    LOG(INFO) << "[MOT] Focus is on " << tracks_[focus_track_index_].uid;
-    if (tracks_[focus_track_index_].object_ptr->GetSelfSimilarity()->IsFull())
-    {
-      if (tracks_[focus_track_index_].object_ptr->GetPeriodicity().GetDominantFrequency(1) == -1)
-      {
-        LOG(INFO) << "[MOT] Non-periodic. Reseting";
-        focus_track_index_ = -1;
-      } else if (tracks_[focus_track_index_].object_ptr->GetPeriodicity().GetDominantFrequency(1) >= 0.75)
-      {
-        LOG(INFO) << "[MOT] FOUND A PERIODIC TRACK";
-      }
-    }
-  }
 //  LOG(INFO) << "[MOT] Deleted Tracks: " << num_deleted;
 
   TICK("MOT_Tracking");
