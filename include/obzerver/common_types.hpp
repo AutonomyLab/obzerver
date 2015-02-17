@@ -32,7 +32,8 @@ struct roi_t
   // Pass all tests? Size, motion ...
   bool valid;
 
-  double motion_per_pixel;
+  double diff_motion_per_pixel;
+  double optflow_per_feature;
 
   // Members of the ROI in image frame
   pts_vec_t curr_pts;
@@ -43,7 +44,7 @@ struct roi_t
   // The minimu axis-aligned bounding box for curr_pts
   cv::Rect bb;
 
-  roi_t(): valid(false), motion_per_pixel(0.0) {}
+  roi_t(): valid(false), diff_motion_per_pixel(0.0), optflow_per_feature(0.0) {}
 
   void reset()
   {

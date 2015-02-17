@@ -27,15 +27,17 @@ ROIExtraction::ROIExtraction(const double dbs_eps,
                              const std::size_t dbs_min_elements,
                              const cv::Size &min_roi_sz,
                              const cv::Size &max_roi_sz,
-                             const double min_motion_per_pixel,
-                             const double inflation_width,
-                             const double inflation_height,
+                             const float min_motion_per_pixel,
+                             const float min_optflow_per_feature,
+                             const float inflation_width,
+                             const float inflation_height,
                              const std::size_t dbs_num_threads)
   : dbs_eps_(dbs_eps),
     dbs_min_elements_(dbs_min_elements),
     min_roi_sz_(min_roi_sz),
     max_roi_sz_(max_roi_sz),
     min_motion_per_pixel_(min_motion_per_pixel),
+    min_optflow_per_feature_(min_optflow_per_feature),
     inf_factor_width_(inflation_width),
     inf_factor_height_(inflation_height),
     dbs_num_threads_(dbs_num_threads),
@@ -106,17 +108,37 @@ bool ROIExtraction::Update(
   {
     obz::roi_t& roi = roi_pair.second;
     if (!roi.curr_pts.size()) continue;
+
     cv::Rect r = obz::util::ClampRect(
           cv::boundingRect(roi.curr_pts),
           cv::Rect(0, 0, diff_frame.cols-1, diff_frame.rows-1));
 
 
-    roi.motion_per_pixel = cv::mean(diff_frame(r))[0];
+    roi.diff_motion_per_pixel = cv::mean(diff_frame(r))[0];
+
+    CV_Assert(roi.curr_pts.size() == roi.prev_pts.size());
+
+    roi.optflow_per_feature = 0.0;
+    for (std::size_t i = 0; i < roi.curr_pts.size(); i++)
+    {
+      const cv::Point2f f = roi.prev_pts[i] - roi.curr_pts[i];
+      roi.optflow_per_feature +=  sqrt((f.x * f.x) + (f.y * f.y));
+    }
+    roi.optflow_per_feature = roi.optflow_per_feature /
+        static_cast<float>(roi.curr_pts.size());
+
+
+    LOG(INFO) << "*** ROI: "
+              << roi.diff_motion_per_pixel
+              << " "
+              << roi.optflow_per_feature
+              << " " << r;
 
     if (
         (r.width < min_roi_sz_.width || r.height < min_roi_sz_.height) ||
         (r.width > max_roi_sz_.width || r.height > max_roi_sz_.height) ||
-        (roi.motion_per_pixel < min_motion_per_pixel_))
+        (roi.diff_motion_per_pixel < min_motion_per_pixel_) ||
+        (roi.optflow_per_feature < min_optflow_per_feature_))
     {
       continue;
     }
@@ -151,9 +173,11 @@ void ROIExtraction::DrawROIs(cv::Mat &frame, const bool verbose)
           (verbose ?
              cv::Scalar(255 * ((cid % 8) & 1), 255 * ((cid % 8) & 2), 255 * ((cid % 8) & 4)) : cv::Scalar(0, 0, 0))
         :
-          cv::Scalar(127, 127, 127);
+          cv::Scalar(255, 255, 255);
 
-    text << "# " << cid << " MPP " << roi_pair.second.motion_per_pixel << bb;
+    text << "# " << cid << " MPP " << roi_pair.second.diff_motion_per_pixel
+            << " OFPF " << roi_pair.second.optflow_per_feature
+            << " " << bb;
     if (verbose)
     {
       cv::putText(frame, text.str(), cv::Point(bb.x, bb.y - 10), CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));

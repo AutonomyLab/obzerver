@@ -17,9 +17,13 @@ private:
   std::size_t dbs_min_elements_;
   cv::Size min_roi_sz_;
   cv::Size max_roi_sz_;
-  double min_motion_per_pixel_;
-  double inf_factor_width_;
-  double inf_factor_height_;
+
+  // Avg values
+  float min_motion_per_pixel_;
+  float min_optflow_per_feature_;
+
+  float inf_factor_width_;
+  float inf_factor_height_;
   std::size_t dbs_num_threads_;
 
   // The result of clustering
@@ -35,9 +39,10 @@ public:
                 const std::size_t dbs_min_elements,
                 const cv::Size& min_roi_sz,
                 const cv::Size& max_roi_sz,
-                const double min_motion_per_pixel,
-                const double inflation_width,
-                const double inflation_height,
+                const float min_motion_per_pixel,
+                const float min_optflow_per_feature,
+                const float inflation_width,
+                const float inflation_height,
                 const std::size_t dbs_num_threads = 1);
 
   ~ROIExtraction();

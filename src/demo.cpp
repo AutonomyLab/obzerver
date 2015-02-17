@@ -104,7 +104,8 @@ int main(int argc, char* argv[]) {
   obz::ROIExtraction roi_extraction(0.04, 10,
                                     cv::Size(5, 10),
                                     cv::Size(100, 200),
-                                    1.0,  // Min Motion Per Pixel
+                                    0.5,  // Min Avg Motion Per Pixel
+                                    0.5,  // Min Avg Optical Flow Per Pixel
                                     0.5,  // Inflation: Width
                                     0.25,  // Inflation: Height
                                     2);   // Num Threads
