@@ -23,7 +23,6 @@ void TObject::Reset() {
 
 void TObject::Update(const object_t &obj,
                      const cv::Mat &frame,
-                     const bool calc_self_similarity,
                      const bool reset) {
   if (reset) Reset();
   LOG(INFO) << "[TObj] Updating with: " << obj.bb << " | Reset: " << reset;
@@ -44,10 +43,9 @@ void TObject::Update(const object_t &obj,
 
 void TObject::Update(const cv::Rect &bb,
                      const cv::Mat &frame,
-                     const bool calc_self_similarity,
                      const bool reset) {
   object_t obj(bb);
-  Update(obj, frame, calc_self_similarity, reset);
+  Update(obj, frame, reset);
 }
 
 }  // namespace obz

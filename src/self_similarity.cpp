@@ -46,14 +46,14 @@ public:
 
     float s;
     std::size_t count = 0;
-    for (int i = range.start; i < range.end; i++) {      
+    for (int i = range.start; i < range.end; i+=1) {
       // Used for non-resizable BBs
       // Max-non-SelfSimilarity when using TM_SQ_DIFF
       s = 65025;
       if (seq[i].size().width && seq[i].size().height)
       {
         count++;
-        cv::resize(seq[i], m2, img_sz, 0.0, 0.0, cv::INTER_NEAREST);
+        cv::resize(seq[i], m2, img_sz, 0.0, 0.0, cv::INTER_LINEAR);
         s = SelfSimilarity::CalcFramesSimilarity(m1, m2, buff, (unsigned int) i, false);
       }
       sim.at<float>(t1, i) = s;
@@ -88,20 +88,22 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
   if ( (m1.cols * m1.rows) >= (m2.cols * m2.rows)) {
     //m2.copyTo(tmpl);
     tmpl = m2;
-//    cv::copyMakeBorder(m1, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+    cv::copyMakeBorder(m1, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
 
     // TODO: Parameterize this
-    cv::copyMakeBorder(m1, img, 5, 5, 5, 5, cv::BORDER_WRAP);
+//    cv::copyMakeBorder(m1, img, 5, 5, 5, 5, cv::BORDER_WRAP);
     orig_width = m1.cols;
     orig_height = m1.rows;
   } else {
     //m1.copyTo(tmpl);
     tmpl = m1;
-    cv::copyMakeBorder(m2, img, 5, 5, 5, 5, cv::BORDER_WRAP);
+    cv::copyMakeBorder(m2, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+
+//    cv::copyMakeBorder(m2, img, 5, 5, 5, 5, cv::BORDER_WRAP);
     orig_width = m2.cols;
     orig_height = m2.rows;
   }
-  cv::matchTemplate(img, tmpl, buff, CV_TM_SQDIFF);
+  cv::matchTemplate(img, tmpl, buff, CV_TM_SQDIFF_NORMED);
   double max_val = 0.0, min_val = 0.0;
   cv::Point max_loc, min_loc;
   cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
@@ -190,14 +192,14 @@ void SelfSimilarity::Calculate(const obz::mseq_t& sequence) {
     med_h *= (50.0 / max_wh);
   }
 
-  for (std::size_t t1 = 0; t1 < sequence.size(); t1++)
+  for (std::size_t t1 = 0; t1 < sequence.size(); t1+=1)
   {
     cv::Mat m1_resized = cv::Mat::zeros(med_h, med_w, CV_8UC1);
 //    cv3::shift(sim_matrix, sim_matrix, cv::Point2f(1.0,1.0));
 
   #if 1
     if (!sequence[t1].size().area()) return;
-    cv::resize(sequence[t1], m1_resized, cv::Size2d(med_w, med_h), 0, 0, cv::INTER_NEAREST);
+    cv::resize(sequence[t1], m1_resized, cv::Size2d(med_w, med_h), 0, 0, cv::INTER_LINEAR);
     cv::parallel_for_(
           cv::Range(0, sequence.size() - 1),
           ParallelFrameSimilarity(
@@ -206,7 +208,7 @@ void SelfSimilarity::Calculate(const obz::mseq_t& sequence) {
             sim_matrix,
             m1_resized,
             cv::Size(med_w,med_h)
-            ), 4 // Use Four Threads
+            ), 2 // Use Four Threads
           );
   #else
     cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);

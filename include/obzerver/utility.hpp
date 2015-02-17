@@ -137,7 +137,7 @@ void DownloadGpuMatToVecFC2(const cv::gpu::GpuMat& d_mat, std::vector<cv::Point2
 void DownloadGpuMatToVecUC1(const cv::gpu::GpuMat& d_mat, std::vector<uchar>& vec);
 
 // Inflate a Rect wrt to its center
-// iw = 1.2 (10% increase for each side)
+// iw = 0.2 (10% increase for each side)
 inline cv::Rect InflateRect(const cv::Rect& r,
                             const double w_inflation_factor,
                             const double h_inflation_factor)

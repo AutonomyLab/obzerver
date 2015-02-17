@@ -25,12 +25,10 @@ public:
   // calc_self_similarity triggers the expensive SS calculation
   void Update(const object_t& obj,
               const cv::Mat& frame,
-              const bool calc_self_similarity = false,
               const bool reset = false);
 
   void Update(const cv::Rect& bb,
               const cv::Mat& frame,
-              const bool calc_self_similarity = false,
               const bool reset = false);
 
   const object_t& Get(const std::size_t index = 0) const {return obj_hist[index]; }

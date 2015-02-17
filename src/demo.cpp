@@ -43,6 +43,7 @@ int main(int argc, char* argv[]) {
                             "{ efl | decision_f_low | 1.0 | evaluation min frequency }"
                             "{ efh | decision_f_high | 4.0 | evaluation max frequency }"
                             "{ ep  | eval_file | /tmp/eval.jpg | image file to dump the decision bounding box to }"
+                            "{ lp | loop | false | loop video}"
                             "{ h  | help | false | print help message }"
                             );
 
@@ -69,6 +70,7 @@ int main(int argc, char* argv[]) {
   const float decision_f_low = cmd.get<float>("decision_f_low");
   const float decision_f_high = cmd.get<float>("decision_f_high");
   const std::string eval_file = cmd.get<std::string>("eval_file");
+  const bool loop = cmd.get<bool>("loop");
 
   const int param_ffd_threshold = 30;
 
@@ -78,7 +80,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  const bool use_webam  = (video_src.compare("cam") == 0);
+  const bool use_webcam  = (video_src.compare("cam") == 0);
 
   /* Logger */
 
@@ -100,11 +102,11 @@ int main(int argc, char* argv[]) {
   //  cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector(param_max_features);
   obz::CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
   obz::ROIExtraction roi_extraction(0.04, 10,
-                                    cv::Size(10, 10),
-                                    cv::Size(100, 100),
+                                    cv::Size(5, 10),
+                                    cv::Size(100, 200),
                                     1.0,  // Min Motion Per Pixel
-                                    1.1,  // Inflation: Width
-                                    1.0,  // Inflation: Height
+                                    0.5,  // Inflation: Width
+                                    0.25,  // Inflation: Height
                                     2);   // Num Threads
   obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);
 
@@ -142,23 +144,26 @@ int main(int argc, char* argv[]) {
     }
   }
 
+
+  long int num_frames = 0;
+
   try {
-    if (use_webam && !capture.open(0)) {
+    if (use_webcam && !capture.open(0)) {
       LOG(ERROR) << "Can not webcam";
       return 1;
-    } else if (!use_webam && !capture.open(video_src)) {
+    } else if (!use_webcam && !capture.open(video_src)) {
       LOG(ERROR) << "Can not open file: " << video_src;
       return 1;
     }
-    if (!use_webam && start_frame > 0 && start_frame < capture.get(CV_CAP_PROP_FRAME_COUNT)) {
+    num_frames = use_webcam ? 0 : capture.get(CV_CAP_PROP_FRAME_COUNT);
+    if (!use_webcam && start_frame > 0 && start_frame < num_frames) {
       frame_counter = start_frame;
       capture.set(CV_CAP_PROP_POS_FRAMES, frame_counter);
     }
-    if (!use_webam) {
+    if (!use_webcam) {
       LOG(INFO) << "Openning file: " << video_src << " frames: " << capture.get(CV_CAP_PROP_FRAME_COUNT);
     }
-    if (display) {
-      const long int num_frames = use_webam ? 0 : capture.get(CV_CAP_PROP_FRAME_COUNT);
+    if (display) {      
       cv::namedWindow("Original", cv::WINDOW_AUTOSIZE | opengl_flags);
       cv::namedWindow("DiffStab", cv::WINDOW_NORMAL | opengl_flags);
       cv::namedWindow("Debug", cv::WINDOW_NORMAL | opengl_flags);
@@ -177,7 +182,7 @@ int main(int argc, char* argv[]) {
         ticker.tick("ML_Downsampling");
       }
       LOG(INFO) << "Frame: " << frame_counter << " [" << frame.cols << " x " << frame.rows << "]";
-      if (display && !use_webam && (frame_counter % 10 == 0)) cv::setTrackbarPos("Browse", "Original", frame_counter);
+      if (display && !use_webcam && (frame_counter % 10 == 0)) cv::setTrackbarPos("Browse", "Original", frame_counter);
       cv::cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
       ticker.tick("ML_Frame_2_Gray");
       bool ct_success = camera_tracker.Update(frame_gray, frame);
@@ -249,7 +254,7 @@ int main(int argc, char* argv[]) {
         //          cv::imwrite("data/sim.bmp", diff_frame);
         //        }
         cv::Mat debug_frame = camera_tracker.GetStablizedGray();
-//        roi_extraction.DrawROIs(frame, false);
+        roi_extraction.DrawROIs(frame, false);
         multi_object_tracker.DrawTracks(frame);
 //        object_tracker.DrawParticles(debug_frame);
 
@@ -278,6 +283,12 @@ int main(int argc, char* argv[]) {
       //ticker.dump(clear);
       while (display && pause) cv::waitKey(100);
       frame_counter++;
+      LOG(INFO) << frame_counter << " / " << num_frames;
+      if (!use_webcam && loop && frame_counter == num_frames-1)
+      {
+        frame_counter = start_frame;
+        capture.set(CV_CAP_PROP_POS_FRAMES, frame_counter);
+      }
       ticker.reset();
     }
   } catch (const std::runtime_error& e) {

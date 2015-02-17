@@ -69,10 +69,18 @@ void ExKalmanFilter::Predict(const cv::Mat& camera_transform)
   // Compensate Camera Motion
   // Transform state from t-1's coordinate system to t's coordinate system
   // TODO: Merge this into Kalman Filter Model
+
+  const double camera_vx = camera_transform.at<double>(0, 2) / dt;
+  const double camera_vy = camera_transform.at<double>(1, 2) / dt;
+  const double camera_v = sqrt((camera_vx * camera_vx) + (camera_vy * camera_vy));
+
+  LOG(INFO) << "[KF] Camera Speed (px/s) " << camera_v;
   cv::Point2f pt_stab(kf_.statePost.at<float>(0, 0), kf_.statePost.at<float>(1, 0));
   pt_stab = obz::util::TransformPoint(pt_stab, camera_transform);
   kf_.statePost.at<float>(0, 0) = pt_stab.x;
   kf_.statePost.at<float>(1, 0) = pt_stab.y;
+//  kf_.statePost.at<float>(2, 0) -= camera_vx;
+//  kf_.statePost.at<float>(3, 0) -= camera_vy;
 
   state_ = kf_.predict();
 }

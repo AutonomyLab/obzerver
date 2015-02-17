@@ -16,50 +16,63 @@ PeriodicityWorkerThread::PeriodicityWorkerThread(MultiObjectTracker &mot) :
   LOG(INFO) << "[PT] cnst";
 }
 
-bool MultiObjectTracker::SetTrack(std::uint32_t track_index)
+bool MultiObjectTracker::SetPWTTrack(std::uint32_t track_index)
 {
-  std::unique_lock<std::mutex> lock(mutex_);
-  if (focus_track_index_ != -1) return false;
-  focus_track_index_ = track_index;
-  LOG(INFO) << "[PT] New track set to index: " << tracks_[focus_track_index_].uid;
-  condition_.notify_one();
+  {
+    std::unique_lock<std::mutex> lock(pwt_mutex_);
+    if (focus_track_index_ != -1) return false;
+    focus_track_index_ = track_index;
+    LOG(INFO) << "[PT] New track set to index: "
+              << focus_track_index_ << " uid: "
+              << tracks_[focus_track_index_].uid;
+  }
+  pwt_condition_.notify_one();
+  return true;
 }
 
-bool MultiObjectTracker::ClearTrack()
+bool MultiObjectTracker::ClearPWTTrack()
 {
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(pwt_mutex_);
   if (focus_track_index_ == -1) return false;
 
   LOG(INFO) << "[PT] Request to clear terminate current track: "
             << tracks_[focus_track_index_].uid;
-  clear_track_ = true;
-  condition_.wait(lock);
+//  clear_track_ = true;
+//  pwt_condition_.wait(lock);
   LOG(INFO) << "[PT] Wait finished";
   focus_track_index_ = 0;
   return true;
 }
 
-void MultiObjectTracker::Terminate()
+void MultiObjectTracker::TerminatePWT()
 {
   LOG(INFO) << "[PT] Sending request to terminate the thread ";
-  terminate_ = true;
+  pwt_terminate_ = true;
+  pwt_condition_.notify_all();
 }
 
 void PeriodicityWorkerThread::operator ()()
 {
   // The copy operator below will resize this
   obz::mseq_t seq(0);
-  while (!mot.terminate_)
+  float fps = 0.0;
+  std::size_t hist_len = 0;
+
+  std::unique_ptr<obz::Periodicity> per_ptr;
+  while (!mot.pwt_terminate_)
   {
     {
-      std::unique_lock<std::mutex> lock(mot.mutex_);
-      while (!mot.terminate_ && mot.focus_track_index_ == -1)
+      std::unique_lock<std::mutex> lock(mot.pwt_mutex_);
+      while (!mot.pwt_terminate_ && mot.focus_track_index_ == -1)
       {
         LOG(INFO) << "[PT] Waiting ...";
-        mot.condition_.wait(lock);
+        mot.pwt_condition_.wait(lock);
       }
 
+      if (mot.pwt_terminate_) break;
       seq = mot.tracks_[mot.focus_track_index_].object_ptr->GetSequence();
+      fps = mot.fps_;
+      hist_len = mot.history_len_;
       LOG(INFO) << "[PT] () Track: " <<  mot.tracks_[mot.focus_track_index_].uid
                 << " Sequence Size: " << seq.size();
     }
@@ -69,6 +82,35 @@ void PeriodicityWorkerThread::operator ()()
 
     LOG(INFO) << "[PT] () Running SS ...";
     ss_ptr->Calculate(seq);
+
+    if (seq.size() == hist_len)
+    {
+      per_ptr.reset(new obz::Periodicity(seq.size(), fps));
+      LOG(INFO) << "[PT] () Calculating Periodicity";
+      for (int i = 0; i < ss_ptr->GetSimMatrix().cols; i+=20)
+      {
+        // First time, reset the spectrum, then add up the power
+        per_ptr->Update(ss_ptr->GetSimMatrix().row(i), i != 0, false);
+        per_ptr->Update(ss_ptr->GetSimMatrix().col(i).t(), true, false);
+
+      }
+
+//      LOG(INFO) << "Avg Spectrum: " << cv::Mat(periodicity.GetSpectrum(), false).t();
+    }
+    LOG(INFO) << "[PT] () SS Done, updating focused track ...";
+    {
+      std::unique_lock<std::mutex> lock(mot.pwt_mutex_);
+      mot.tracks_[mot.focus_track_index_].self_similarity_rendered =
+          ss_ptr->GetSimMatrixRendered().clone();
+      if (seq.size() == hist_len)
+      {
+        CV_Assert(per_ptr);
+        mot.tracks_[mot.focus_track_index_].dom_freq =
+            per_ptr->GetDominantFrequency();
+        mot.tracks_[mot.focus_track_index_].avg_spectrum =
+            per_ptr->GetSpectrum();
+      }
+    }
     LOG(INFO) << "[PT] () Done. Clearing the track";
     mot.focus_track_index_ = -1;
   }
@@ -88,8 +130,10 @@ MultiObjectTracker::MultiObjectTracker(const std::uint32_t history_len,
     history_len_(history_len),
     fps_(fps),
     max_skipped_frames_(max_skipped_frames),
+    focus_order_(0),
     focus_track_index_(-1),
-    per_thread_(std::thread(obz::PeriodicityWorkerThread(*this)))
+    pwt_terminate_(false),
+    pwt_thread_(std::thread(obz::PeriodicityWorkerThread(*this)))
 {
   // http://stackoverflow.com/a/22687003
 //  periodicity_thread_ = std::thread{
@@ -99,6 +143,17 @@ MultiObjectTracker::MultiObjectTracker(const std::uint32_t history_len,
 
 MultiObjectTracker::~MultiObjectTracker()
 {
+  LOG(INFO) << "[MOT] dstr";
+  TerminatePWT();
+  if (pwt_thread_.joinable())
+  {
+    pwt_thread_.join();
+  }
+  else
+  {
+    LOG(WARNING) << "[MOT] PWT thread was not joinable!";
+  }
+  LOG(INFO) << "[MOT] graceful shutdown";
 }
 
 void MultiObjectTracker::CreateTrack(const cv::Rect &bb, const cv::Mat &frame)
@@ -113,7 +168,7 @@ void MultiObjectTracker::CreateTrack(const cv::Rect &bb, const cv::Mat &frame)
 
   track.object_ptr = cv::Ptr<obz::TObject>(new obz::TObject(history_len_, fps_));
 
-  track.object_ptr->Update(bb, frame, false, false);
+  track.object_ptr->Update(bb, frame, false);
   track.ekf_ptr = cv::Ptr<obz::ExKalmanFilter>(new obz::ExKalmanFilter(bb));
   next_uid_++;
 
@@ -137,30 +192,32 @@ void MultiObjectTracker::DeleteTrack(const std::uint32_t track_index)
   tracks_.erase(tracks_.begin() + track_index);
 }
 
-void MultiObjectTracker::UpdateTrack(const std::uint32_t track_index,
-                                     const cv::Mat &frame,
-                                     const cv::Mat &camera_transform,
-                                     const bool calc_self_similarity)
+void MultiObjectTracker::UpdateTrack(
+    const std::uint32_t track_index,
+    const cv::Mat &frame,
+    const cv::Mat &camera_transform)
 {
   CV_Assert(track_index < tracks_.size());
-  LOG(INFO) << "[MOT] Updating w/o " << track_index << "'s track: " << tracks_[track_index].uid;
 
-  tracks_[track_index].skipped_frames++;
 
-  // Update kalman filter w/o prediction, pass the result to TObject
-  obz::object_t obj = tracks_[track_index].ekf_ptr->Update(camera_transform);
-//  LOG(INFO) << "  with (pre)" << obj.bb;
-  obj.bb = obz::util::ClampRect(obj.bb, frame.cols, frame.rows);
-//  LOG(INFO) << "  with (post)" << obj.bb;
-
-  tracks_[track_index].object_ptr->Update(obj,
-                                          frame,
-                                          calc_self_similarity,
-                                          false);
-
-  if (IsFree())
   {
-    SetTrack(track_index);
+    std::unique_lock<std::mutex> lock(pwt_mutex_);
+    LOG(INFO) << "[MOT] Updating w/o " << track_index << "'s track: "
+              << tracks_[track_index].uid;
+
+    tracks_[track_index].skipped_frames++;
+    obz::object_t obj = tracks_[track_index].ekf_ptr->Update(camera_transform);
+    obj.bb = obz::util::ClampRect(obj.bb, frame.cols, frame.rows);
+
+    tracks_[track_index].object_ptr->Update(obj,
+                                            frame,
+                                            false);
+  }
+
+  if (IsPWTFree() && (focus_order_ % tracks_.size() == track_index))
+  {
+    focus_order_++;
+    SetPWTTrack(track_index);
   }
 }
 
@@ -168,28 +225,25 @@ void MultiObjectTracker::UpdateTrack(
     const std::uint32_t track_index,
     const cv::Rect &bb,
     const cv::Mat &frame,
-    const cv::Mat &camera_transform,
-    const bool calc_self_similarity)
+    const cv::Mat &camera_transform)
 {
   CV_Assert(track_index < tracks_.size());
-  LOG(INFO) << "[MOT] Updating obz " << track_index << "'s track: " << tracks_[track_index].uid;
-//  LOG(INFO) << "  with (pre) " << bb;
-
-  tracks_[track_index].skipped_frames = 0;
-
-  // Update kalman filter with bb, pass the result to TObject
-  obz::object_t obj = tracks_[track_index].ekf_ptr->Update(bb, camera_transform);
-  obj.bb = obz::util::ClampRect(obj.bb, frame.cols, frame.rows);
-//  LOG(INFO) << "  with (post) " << obj.bb;
-
-  tracks_[track_index].object_ptr->Update(obj,
-                                          frame,
-                                          calc_self_similarity,
-                                          false);
-
-  if (IsFree())
   {
-    SetTrack(track_index);
+    std::unique_lock<std::mutex> lock(pwt_mutex_);
+    LOG(INFO) << "[MOT] Updating obz " << track_index << "'s track: "
+              << tracks_[track_index].uid;
+    tracks_[track_index].skipped_frames = 0;
+    obz::object_t obj = tracks_[track_index].ekf_ptr->Update(bb, camera_transform);
+    obj.bb = obz::util::ClampRect(obj.bb, frame.cols, frame.rows);
+    tracks_[track_index].object_ptr->Update(obj,
+                                            frame,
+                                            false);
+  }
+
+  if (IsPWTFree() && (focus_order_ % tracks_.size() == track_index))
+  {
+    focus_order_++;
+    SetPWTTrack(track_index);
   }
 }
 
@@ -199,29 +253,26 @@ void MultiObjectTracker::Update(const rect_vec_t &detections,
 {
   const std::size_t n_dets = detections.size();
   const std::size_t n_tracks = tracks_.size();
+  const int max_cost = 200;
 
-  // TDM: Choose one track at each frame to update self similarity
-  const std::size_t ss_update_track_index = n_tracks ? rand() % n_tracks : 0;
 
   LOG(INFO) << "[MOT] Number of detections: "
             << n_dets
             << " Tracks: "
             << n_tracks
-            << " SS Track: " << ss_update_track_index;
+            << " Focus Track Index: " << focus_track_index_;
 
   if (n_dets == 0)
   {
-//    LOG(INFO) << "[MOT] No detections";
     for (std::size_t t = 0; t < n_tracks; t++)
     {
-      UpdateTrack(t, frame, camera_transform, (ss_update_track_index == t));
+      UpdateTrack(t, frame, camera_transform);
     }
     return;
   }
 
   if (n_tracks == 0)
   {
-//    LOG(INFO) << "[MOT] No tracks";
     // We should create tracks for all detections
     for (std::size_t d = 0; d < n_dets; d++)
     {
@@ -230,20 +281,109 @@ void MultiObjectTracker::Update(const rect_vec_t &detections,
     return;
   }
 
-  cv::Mat_<int> cost(n_tracks, n_dets);
+  cv::Mat_<int> initial_cost(n_tracks, n_dets);
 
   // Go over all tracks and detections to calculate assignment cost
-  for (std::size_t t = 0; t < n_tracks; t++)
   {
-    for (std::size_t d = 0; d < n_dets; d++)
+    std::unique_lock<std::mutex> lock(pwt_mutex_);
+    for (std::size_t t = 0; t < n_tracks; t++)
     {
-      cost(t, d) = obz::util::Dist2(
-            obz::util::RectCenter(tracks_[t].GetBB()),
-            obz::util::RectCenter(detections[d]));
+      for (std::size_t d = 0; d < n_dets; d++)
+      {
+        // Prevent cost(t, d) = 0
+        initial_cost(t, d) = 10 + (sqrt(obz::util::Dist2(
+              obz::util::RectCenter(tracks_[t].GetBB()),
+              obz::util::RectCenter(detections[d]))));
+      }
     }
   }
 
-//  LOG(INFO) << "[MOT] cost\n" << cost;
+
+  LOG(INFO) << "[MOT] cost initial" << initial_cost;
+
+  /*
+   * Optimized hungarian matcher proposed in this paper:
+   * Luetteke, Felix; Zhang, Xu; Franke, Joerg,
+   * "Implementation of the Hungarian Method for object tracking on a
+   * camera monitored transportation system,"
+   * */
+
+  // These vectors keep ids of canid/lonely(unmatched) tracks/candidates
+  // Case I. All rows or cols are above max_cost
+  // Case II. Individual item is greater than max_cost
+
+  std::vector<std::size_t> candid_tracks;
+  std::vector<std::size_t> candid_detections;
+  std::vector<std::size_t> lonely_tracks;
+  std::vector<std::size_t> lonely_detections;
+
+  // Find Case I rows and cols and add their ids to lonely_* vectors
+  // Indexes of Tracks/Detections which survive are added to candid_* vectors
+  for (std::size_t t = 0; t < n_tracks; t++)
+  {
+    bool invalid_row = true;
+    for (std::size_t d = 0; d < n_dets && invalid_row; d++)
+    {
+      if (initial_cost(t, d) < max_cost) invalid_row = false;
+    }
+    if (invalid_row)
+    {
+      lonely_tracks.push_back(t);
+    }
+    else
+    {
+      candid_tracks.push_back(t);
+    }
+  }
+
+  for (std::size_t d = 0; d < n_dets; d++)
+  {
+    bool invalid_col = true;
+    for (std::size_t t = 0; t < n_tracks && invalid_col; t++)
+    {
+      if (initial_cost(t, d) < max_cost) invalid_col = false;
+    }
+    if (invalid_col)
+    {
+      lonely_detections.push_back(d);
+    }
+    else
+    {
+      candid_detections.push_back(d);
+    }
+  }
+
+  // Upper bound for penalty, this is for case II
+  // if candid track/match pair's cost is greater than max_cost, we
+  // replace that cost with max_penalty to ensure that it will never
+  // end up in the global solution
+  const int max_penalty = std::max(candid_tracks.size(), candid_detections.size()) * max_cost;
+
+  LOG(INFO) << "[MOT] Candid Tracks: " << candid_tracks.size()
+            << " Candid Dets: " << candid_detections.size()
+            << " Max Penalty: " << max_penalty;
+  cv::Mat_<int> cost(candid_tracks.size(), candid_detections.size());
+
+  {
+    std::unique_lock<std::mutex> lock(pwt_mutex_);
+    for (std::size_t t = 0; t < candid_tracks.size(); t++)
+    {
+      for (std::size_t d = 0; d < candid_detections.size(); d++)
+      {
+        // Prevent cost(t, d) = 0
+        const int c = 10 + (sqrt(
+                              obz::util::Dist2(
+                                obz::util::RectCenter(tracks_[candid_tracks[t]].GetBB()),
+                                obz::util::RectCenter(detections[candid_detections[d]]))));
+
+        // Case II
+        cost(t, d) = c < max_cost ? c : max_penalty;
+      }
+    }
+  }
+
+  LOG(INFO) << "[MOT] candidate cost: " << cost;
+
   // Since the hungarian matcher changes the matrix in place
   cv::Mat_<int> match = cost.clone();
 
@@ -253,7 +393,7 @@ void MultiObjectTracker::Update(const rect_vec_t &detections,
   hungarian_solver_.diag(false);
   hungarian_solver_.solve(match);
 
-//  LOG(INFO) << "[MOT] match\n" << match;
+  LOG(INFO) << "[MOT] match " << match;
 
   CV_Assert(match.size() == cost.size());
   TICK("MOT_Hungarian");
@@ -266,41 +406,51 @@ void MultiObjectTracker::Update(const rect_vec_t &detections,
 //    LOG(INFO) << "Checking track index " << t;
     for (d = 0; d < match.cols && !is_matched; d++)
     {
-      if ((match(t, d) == 0) && (cost(t, d) < 1e4))
+      if (match(t, d) == 0)
       {
-        is_matched = true;
-        match(t, d) = -1;  // Mark detection as unmatched
+        if (cost(t, d) != max_penalty)
+        {
+          is_matched = true;
+        }
+        else
+        {
+          // Push it to lonely detections if distance is max_penalty (case II)
+          lonely_detections.push_back(candid_detections[d]);
+        }
       }
     }
     if (is_matched)
     {
-      UpdateTrack(t, detections[d-1], frame, camera_transform,
-          static_cast<std::int32_t>(ss_update_track_index) == t);
-      match(t, d-1) = 100;  // Matched and valid
+      // with obz
+      UpdateTrack(candid_tracks[t],
+                  detections[candid_detections[d-1]], frame, camera_transform);
+//      match(t, d-1) = 100;  // Matched and valid
     }
     else
     {
-      UpdateTrack(t, frame, camera_transform,
-                  static_cast<std::int32_t>(ss_update_track_index) == t);
+      // Push unmatched tracks to list of tracks w/o obz
+      lonely_tracks.push_back(candid_tracks[t]);
     }
   }
 
-  for (std::int32_t d = 0; d < match.cols; d++)
+//  LOG(INFO) << "[MOT] match modified " << match;
+  for (std::size_t d = 0; d < lonely_detections.size(); d++)
   {
-    // Check if this detection
-    std::int32_t t = 0;
-    for (t = 0; t < match.rows && match(t, d) == -1; t++) ;
-    if (t == match.rows)
-    {
-      // Create a new track
-      CreateTrack(detections[d], frame);
-    }
+    CreateTrack(detections[lonely_detections[d]], frame);
+  }
+
+  for (std::size_t t = 0; t < lonely_tracks.size(); t++)
+  {
+    // Update w/o obz
+    UpdateTrack(lonely_tracks[t], frame, camera_transform);
   }
 
   // Remove stale tracks
+
   std::size_t num_deleted = 0;
   for (std::size_t t = 0; t < tracks_.size(); t++)
   {
+    // TODO: This call be should become thread safe
     if (tracks_[t].skipped_frames > max_skipped_frames_)
     {
       DeleteTrack(t - num_deleted);
@@ -309,38 +459,58 @@ void MultiObjectTracker::Update(const rect_vec_t &detections,
   }
 
 //  LOG(INFO) << "[MOT] Deleted Tracks: " << num_deleted;
-
   TICK("MOT_Tracking");
 }
 
 void MultiObjectTracker::DrawTracks(cv::Mat &frame)
 {
+  cv::Mat ss_mat;
+  std::uint32_t uid;
+  cv::Rect bb;
+  float dom_freq;
+  std::stringstream text;
+  std::size_t skipped_frames;
+
   for (std::size_t t = 0; t < tracks_.size(); t++)
   {
-    const std::uint32_t& uid = tracks_[t].uid;
-    const cv::Rect& bb = tracks_[t].GetBB();
-    std::stringstream text;
+    {
+      std::unique_lock<std::mutex> lock(pwt_mutex_);
+      uid = tracks_[t].uid;
+      bb = tracks_[t].GetBB();
+      dom_freq = tracks_[t].dom_freq;
+      ss_mat = tracks_[t].self_similarity_rendered;
+      skipped_frames = tracks_[t].skipped_frames;
+    }
 
     const cv::Scalar track_color =
           cv::Scalar(255 * ((uid % 8) & 1), 255 * ((uid % 8) & 2), 255 * ((uid % 8) & 4));
 
-    text << "# " << uid;
-//         << " " << tracks_[t].object_ptr->GetPeriodicity().GetDominantFrequency();
+    text.str("");
+    text << "# " << uid
+         << " " << dom_freq;
 //         << " " << bb;
 
-    cv::putText(frame, text.str(), cv::Point(bb.x, bb.y - 10), CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
+    cv::putText(frame, text.str(),
+                cv::Point(bb.x, bb.y - 10),
+                CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
     cv::rectangle(frame, bb, track_color);
 
-//    cv::Mat ss_mat = tracks_[t].object_ptr->GetSelfSimilarity().GetSimMatrixRendered();
-//    const cv::Rect roi = util::ClampRect(cv::Rect(bb.x, bb.y, ss_mat.cols, ss_mat.rows),
-//                                         frame.cols, frame.rows);
-//    cv::cvtColor(ss_mat, ss_mat, CV_GRAY2BGR);
-//    if (roi.area())
-//    {
-//      ss_mat(cv::Rect(0, 0, roi.width, roi.height)).copyTo(frame(roi));
-//    }
-    //frame(roi) = ss_mat(cv::Rect(0, 0, roi.width, roi.height)).clone();
-    //cv::rectangle(frame, roi, cv::Scalar(100,100,100));
+    LOG(INFO) << "[MOT] Track[" << t << "] uid: " << uid << " " << bb << " " << dom_freq
+                 << " SF" << skipped_frames;
+    if (ss_mat.data)
+    {
+      const cv::Rect roi = util::ClampRect(cv::Rect(bb.x, bb.y, ss_mat.cols, ss_mat.rows),
+                                           frame.cols, frame.rows);
+
+      cv::cvtColor(ss_mat, ss_mat, CV_GRAY2BGR);
+      if (roi.area())
+      {
+        cv::Mat ss_mat_roi = ss_mat(cv::Rect(0, 0, roi.width, roi.height)).mul(0.5);
+        cv::Mat frame_roi_orig = frame(roi).clone().mul(0.5);
+        ss_mat_roi += frame_roi_orig;
+        ss_mat_roi.copyTo(frame(roi));
+      }
+    }
 
 //    text.str("");
 //    text << "./sim/track-" << tracks_[t].uid << "-ss.png";

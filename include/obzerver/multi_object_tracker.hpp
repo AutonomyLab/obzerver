@@ -7,7 +7,6 @@
 #include "obzerver/hungarian.hpp"
 
 #include <opencv2/core/core.hpp>
-#include <cstdint>
 #include <list>
 #include <map>
 
@@ -39,7 +38,7 @@ struct Track
 //  } periodicity_state;
 
   Track(const std::uint32_t uid = 0):
-    uid(uid), skipped_frames(0) {}
+    uid(uid), dom_freq(-1.0), skipped_frames(0) {}
 
   Track(const Track& rhs):
     uid(rhs.uid),
@@ -70,27 +69,26 @@ class MultiObjectTracker
 {
 private:
 
-  // uid = 0 is reserved for unknown
+  // uid = 0 is reserved
   std::uint32_t next_uid_;
   // TODO: Optimize this
   std::vector<Track> tracks_;
   std::uint32_t history_len_; // for TObject
   float fps_;  // for TObject
   const std::uint32_t max_skipped_frames_;   // To lose track
+  std::uint64_t focus_order_;
 
+  /* Periodicity Thread Stuff */
   friend class PeriodicityWorkerThread;
-  // -1 not set
-  std::atomic<std::int32_t> focus_track_index_;
-  std::condition_variable condition_;
-  std::atomic<bool> clear_track_;
-  std::atomic<bool> terminate_;
-  std::mutex mutex_;
-  std::thread per_thread_;
-  bool IsFree() const {return focus_track_index_ == -1; }
-  bool SetTrack(std::uint32_t track_index);
-  bool ClearTrack();
-  void Terminate();
-
+  std::atomic<std::int32_t> focus_track_index_;  // -1 not set
+  std::condition_variable pwt_condition_;
+  std::atomic<bool> pwt_terminate_;
+  std::mutex pwt_mutex_;
+  std::thread pwt_thread_;
+  bool IsPWTFree() const {return focus_track_index_ == -1; }
+  bool SetPWTTrack(std::uint32_t track_index);
+  bool ClearPWTTrack();
+  void TerminatePWT();
 
   void CreateTrack(const cv::Rect& bb, const cv::Mat& frame);
   void DeleteTrack(const std::uint32_t track_index);
@@ -98,15 +96,13 @@ private:
   // W/O obzervation
   void UpdateTrack(const std::uint32_t track_index,
                    const cv::Mat& frame,
-                   const cv::Mat& camera_transform,
-                   const bool calc_self_similarity);
+                   const cv::Mat& camera_transform);
 
   // W/ obzervation
   void UpdateTrack(const std::uint32_t track_index,
                    const cv::Rect& bb,
                    const cv::Mat& frame,
-                   const cv::Mat& camera_transform,
-                   const bool calc_self_similarity);
+                   const cv::Mat& camera_transform);
 
 public:
   MultiObjectTracker(const std::uint32_t hist_len,
