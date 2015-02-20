@@ -62,9 +62,12 @@ public:
   }
 };
 
-SelfSimilarity::SelfSimilarity(const std::size_t hist_len, const bool debug_mode):
+SelfSimilarity::SelfSimilarity(const std::size_t hist_len,
+                               const std::uint64_t current_time,
+                               const bool debug_mode):
   debug_mode(debug_mode),
   sim_matrix(cv::Mat::zeros(hist_len, hist_len, CV_32F)),
+  last_update_time(current_time),
   ticker(StepBenchmarker::GetInstance())
 {
   ;
@@ -78,7 +81,7 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
 {
 #if 0
   CV_Assert(m1.size() == m2.size());
-  cv::matchTemplate(m1, m2, buff, CV_TM_SQDIFF);
+  cv::matchTemplate(m1, m2, buff, CV_TM_CCOEFF_NORMED);
   double max_val = 0.0, min_val = 0.0;
   cv::Point max_loc, min_loc;
   cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
@@ -91,24 +94,24 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
     cv::copyMakeBorder(m1, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
 
     // TODO: Parameterize this
-//    cv::copyMakeBorder(m1, img, 5, 5, 5, 5, cv::BORDER_WRAP);
+//    cv::copyMakeBorder(m1, img, 10, 10, 10, 10, cv::BORDER_CONSTANT);
     orig_width = m1.cols;
     orig_height = m1.rows;
   } else {
     //m1.copyTo(tmpl);
     tmpl = m1;
-    cv::copyMakeBorder(m2, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+//    cv::copyMakeBorder(m2, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
 
-//    cv::copyMakeBorder(m2, img, 5, 5, 5, 5, cv::BORDER_WRAP);
+    cv::copyMakeBorder(m2, img, 10, 10, 10, 10, cv::BORDER_WRAP);
     orig_width = m2.cols;
     orig_height = m2.rows;
   }
-  cv::matchTemplate(img, tmpl, buff, CV_TM_SQDIFF_NORMED);
+  cv::matchTemplate(img, tmpl, buff, CV_TM_CCOEFF);
   double max_val = 0.0, min_val = 0.0;
   cv::Point max_loc, min_loc;
   cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
 
-  if (debug_mode) {
+//  if (debug_mode) {
     // img coordinate system is the global coordinate system here
     // from 0,0 -> img.w + tmpl.w, img.h + tmpl.h
 
@@ -116,11 +119,11 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
     // & is intersection of two rects
     cv::Rect tmpl_overlap =
         cv::Rect(tmpl.cols/2, tmpl.rows/2, orig_width, orig_height) & // original image in global coordinates
-        cv::Rect(min_loc, cv::Size(tmpl.cols, tmpl.rows)); // matched tmpl in global coordinates
+        cv::Rect(max_loc, cv::Size(tmpl.cols, tmpl.rows)); // matched tmpl in global coordinates
 
     cv::Rect tmpl_roi(
-          tmpl_overlap.x - min_loc.x,
-          tmpl_overlap.y - min_loc.y,
+          tmpl_overlap.x - max_loc.x,
+          tmpl_overlap.y - max_loc.y,
           tmpl_overlap.width,
           tmpl_overlap.height
           );
@@ -129,54 +132,58 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
 
     cv::Mat tmpl_cropped = tmpl(tmpl_roi).clone();
 
-    cv::rectangle(img, tmpl_overlap, cv::Scalar(0,0,0));
-    cv::rectangle(tmpl, tmpl_roi, cv::Scalar(0,0,0));
+//    cv::rectangle(img, tmpl_overlap, cv::Scalar(0,0,0));
+//    cv::rectangle(tmpl, tmpl_roi, cv::Scalar(0,0,0));
     CV_Assert(img_cropped.size() == tmpl_cropped.size());
-    std::stringstream ss;
-    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_0m1.bmp";
-    cv::imwrite(ss.str(), m1);
+//    std::stringstream ss;
+//    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_0m1.bmp";
+//    cv::imwrite(ss.str(), m1);
 
-    ss.str("");
-    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_1m2.bmp";
-    cv::imwrite(ss.str(), m2);
+//    ss.str("");
+//    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_1m2.bmp";
+//    cv::imwrite(ss.str(), m2);
 
-    ss.str("");
-    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_2img.bmp";
-    cv::imwrite(ss.str(), img.clone());
+//    ss.str("");
+//    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_2img.bmp";
+//    cv::imwrite(ss.str(), img.clone());
 
-    ss.str("");
-    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_3tpl.bmp";
-    cv::imwrite(ss.str(), tmpl.clone());
+//    ss.str("");
+//    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_3tpl.bmp";
+//    cv::imwrite(ss.str(), tmpl.clone());
 
-    ss.str("");
-    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_4buf.bmp";
-    cv::imwrite(ss.str(), buff.clone());
+//    ss.str("");
+//    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_4buf.bmp";
+//    cv::imwrite(ss.str(), buff.clone());
 
-    ss.str("");
-    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_5m2_cropped.bmp";
-    cv::imwrite(ss.str(), m2);
+//    ss.str("");
+//    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_5m2_cropped.bmp";
+//    cv::imwrite(ss.str(), m2);
 
-  }
+//  }
 #endif
-
-  return min_val;
+  cv::matchTemplate(img, tmpl, buff, CV_TM_CCOEFF);
+  cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
+  return max_val;// / static_cast<float>(m1.rows * m1.cols);
 }
 
 
-
-void SelfSimilarity::Calculate(const obz::mseq_t& sequence) {
+void SelfSimilarity::Update(obz::mseq_t& sequence, std::uint64_t current_time, const std::string& debug_prefix) {
+  LOG(INFO) << "[SS] Size: " << sequence.size();
   widths.resize(sequence.size());
   heights.resize(sequence.size());
   std::size_t i = 0;
-  for (mseq_t::const_iterator it = sequence.begin(); it != sequence.end(); it++, i++) {
+  for (mseq_t::const_iterator it = sequence.begin(); it != sequence.end(); it++, i++)
+  {
     widths[i] = it->size().width;
     heights[i] = it->size().height;
   }
 
   std::size_t med_w = util::quick_median(widths);
   std::size_t med_h = util::quick_median(heights);
+  const std::size_t lag = std::min(current_time - last_update_time, sequence.size());
 
-  LOG(INFO) << "[SS] Median Size: " << med_w << ", " << med_h << " @ " << sequence.size();
+  LOG(INFO) << "[SS] Median Size: " << med_w << ", " << med_h
+            << " @ " << sequence.size() << " lag: " << lag;
 
   // TODO: PUSH NULL SS
   if (med_w == 0 || med_h == 0)
@@ -192,12 +199,26 @@ void SelfSimilarity::Calculate(const obz::mseq_t& sequence) {
     med_h *= (50.0 / max_wh);
   }
 
-  for (std::size_t t1 = 0; t1 < sequence.size(); t1+=1)
+  for (std::size_t s = 0; s < sequence.size(); s++)
   {
-    cv::Mat m1_resized = cv::Mat::zeros(med_h, med_w, CV_8UC1);
+    if ((!sequence[s].rows) || (!sequence[s].cols))
+    {
+      LOG(WARNING) << "[SS] Area of one BB in sequence is 0";
+      return;
+    }
+    cv::resize(sequence[s], sequence[s], cv::Size2d(med_w, med_h), 0, 0, cv::INTER_LINEAR);
+  }
+
+  // We only perform `lag` number of SS calculations
+  cv3::shift(sim_matrix, sim_matrix, cv::Point2f(lag, lag));
+  cv::Mat buff = cv::Mat::zeros(med_h, med_w, CV_32FC1);
+
+  for (std::size_t t1 = 0; t1 < lag; t1++)
+  {
+//    cv::Mat m1_resized = cv::Mat::zeros(med_h, med_w, CV_8UC1);
 //    cv3::shift(sim_matrix, sim_matrix, cv::Point2f(1.0,1.0));
 
-  #if 1
+  #if 0
     if (!sequence[t1].size().area()) return;
     cv::resize(sequence[t1], m1_resized, cv::Size2d(med_w, med_h), 0, 0, cv::INTER_LINEAR);
     cv::parallel_for_(
@@ -211,26 +232,26 @@ void SelfSimilarity::Calculate(const obz::mseq_t& sequence) {
             ), 2 // Use Four Threads
           );
   #else
-    cv::Mat m2_resized = cv::Mat::zeros(h, w, CV_8UC1);
-    cv::Mat buff = cv::Mat::zeros(h, w, CV_8UC1);
-    cv::resize(sequence.at(0), m1_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
+//    cv::Mat m2_resized = cv::Mat::zeros(med_h, med_w, CV_8UC1);
 
-    for (std::size_t t1 = 0; t1 < sequence.size(); t1++) {
-      cv::resize(sequence.at(t1), m2_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
+//    cv::resize(sequence.at(t1), m1_resized, cv::Size2d(med_w, med_h), 0, 0, CV_INTER_LINEAR);
+
+    for (std::size_t t2 = t1; t2 < sequence.size(); t2++) {
+//      cv::resize(sequence.at(t2), m2_resized, cv::Size2d(w, h), 0, 0, CV_INTER_CUBIC);
       //const float s = CalcFramesSimilarity(sequence.at(0), sequence.at(t1), buff, t1);
-      const float s = CalcFramesSimilarity(m1_resized, m2_resized, buff, t1);
-      sim_matrix.at<float>(0, t1) = s;
-      sim_matrix.at<float>(t1, 0) = s;
+      const float s = CalcFramesSimilarity(sequence[t1], sequence[t2], buff, t1);
+      sim_matrix.at<float>(t1, t2) = s;
+      sim_matrix.at<float>(t2, t1) = s;
     }
   #endif
   }
 
-  if (debug_mode) {
-    LOG(INFO) << sim_matrix;
-    WriteToDisk(sequence, "./data");
+  last_update_time = current_time;
+  if (/*debug_mode*/ !debug_prefix.empty()) {
+    //LOG(INFO) << sim_matrix;
+    WriteToDisk(sequence, "./data", debug_prefix);
   }
-
-  ticker.tick("SS_Self_Similarity_Update");
+//  ticker.tick("SS_Self_Similarity_Update");
 }
 
 const cv::Mat& SelfSimilarity::GetSimMatrix() const {

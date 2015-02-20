@@ -23,10 +23,13 @@ struct Track
   std::uint32_t uid;
   cv::Ptr<obz::TObject> object_ptr;
   cv::Ptr<obz::ExKalmanFilter> ekf_ptr;
+  cv::Ptr<obz::SelfSimilarity> ss_ptr;
+  cv::Ptr<obz::Periodicity> per_ptr;
   cv::Mat self_similarity_rendered;
   float dom_freq;
   std::vector<float> avg_spectrum;
   std::uint32_t skipped_frames;
+  std::uint32_t life;
 
 //  enum periodicity_state_t
 //  {
@@ -38,16 +41,7 @@ struct Track
 //  } periodicity_state;
 
   Track(const std::uint32_t uid = 0):
-    uid(uid), dom_freq(-1.0), skipped_frames(0) {}
-
-  Track(const Track& rhs):
-    uid(rhs.uid),
-    object_ptr(rhs.object_ptr),
-    ekf_ptr(rhs.ekf_ptr),
-    self_similarity_rendered(rhs.self_similarity_rendered),
-    dom_freq(rhs.dom_freq),
-    avg_spectrum(rhs.avg_spectrum),
-    skipped_frames(rhs.skipped_frames) {}
+    uid(uid), dom_freq(-1.0), skipped_frames(0), life(0) {}
 
   const cv::Rect& GetBB() const {return object_ptr->Get().bb;}
 };
@@ -68,7 +62,7 @@ public:
 class MultiObjectTracker
 {
 private:
-
+  std::atomic<std::uint64_t> current_time;
   // uid = 0 is reserved
   std::uint32_t next_uid_;
   // TODO: Optimize this
@@ -85,23 +79,26 @@ private:
   std::atomic<bool> pwt_terminate_;
   std::mutex pwt_mutex_;
   std::thread pwt_thread_;
-  bool IsPWTFree() const {return focus_track_index_ == -1; }
+  bool IsPWTFree() const {return false && focus_track_index_ == -1; }
   bool SetPWTTrack(std::uint32_t track_index);
   bool ClearPWTTrack();
   void TerminatePWT();
 
-  void CreateTrack(const cv::Rect& bb, const cv::Mat& frame);
+  void CreateTrack(const cv::Rect& bb, const cv::Mat& frame, const cv::Mat& diff_frame, const float flow);
   void DeleteTrack(const std::uint32_t track_index);
 
   // W/O obzervation
   void UpdateTrack(const std::uint32_t track_index,
                    const cv::Mat& frame,
+                   const cv::Mat& diff_frame,
                    const cv::Mat& camera_transform);
 
   // W/ obzervation
   void UpdateTrack(const std::uint32_t track_index,
                    const cv::Rect& bb,
                    const cv::Mat& frame,
+                   const cv::Mat& diff_frame,
+                   const float flow,
                    const cv::Mat& camera_transform);
 
 public:
@@ -112,8 +109,8 @@ public:
 
   // camera_transform is 3x3 homogenous transform to go from
   // frame t-1's coordinate system to frame t
-  void Update(const obz::rect_vec_t& detections,
-              const cv::Mat& frame,
+  void Update(const obz::rect_vec_t& detections, const std::vector<float> &flows,
+              const cv::Mat& frame, const cv::Mat &diff_frame,
               const cv::Mat& camera_transform);
 
   std::size_t GetNumTracks() const {return tracks_.size();}

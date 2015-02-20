@@ -22,7 +22,7 @@ function result = myfft(signal, Fs)
 	ft_signal = fft(signal_filtered);
 	power_ft_signal = abs(ft_signal) / N;
 	
-    pxx= periodogram(signal);
+    %pxx= periodogram(signal);
 	figure;
 	plot(t, signal); title('original'); grid on;
 	figure;
@@ -32,7 +32,7 @@ function result = myfft(signal, Fs)
 	figure;
 	plot(f(1:N/2), power_ft_signal(1:N/2), 'b--+'); title('|ft|'); grid on;
 
-    figure;
-    plot(f(1:N/2), pxx(1:N/2)); title('periodogram'); grid on;
+    %figure;
+    %plot(f(1:N/2), pxx(1:N/2)); title('periodogram'); grid on;
 
 	result = power_ft_signal;

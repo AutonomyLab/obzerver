@@ -48,11 +48,11 @@ public:
   ~ROIExtraction();
 
   bool Update(const obz::pts_vec_t& curr_features,
-                     const obz::pts_vec_t& prev_features,
-                     const cv::Mat& diff_frame);
+              const obz::pts_vec_t& prev_features,
+              const cv::Mat& diff_frame);
 
   // This function appends data to bb_vec
-  std::size_t GetValidBBs(obz::rect_vec_t& bb_vec) const;
+  std::size_t GetValidBBs(obz::rect_vec_t& bb_vec, std::vector<float> &avg_flow) const;
 
   const obz::roi_map_t& GetROIsMap() const {return rois_map_;}
 

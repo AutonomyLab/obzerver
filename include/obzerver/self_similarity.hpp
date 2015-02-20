@@ -17,7 +17,7 @@ class SelfSimilarity {
 private:
   bool debug_mode;  
   cv::Mat sim_matrix;
-
+  std::uint64_t last_update_time;
   // For median
   std::vector<std::size_t> widths;
   std::vector<std::size_t> heights;
@@ -25,15 +25,22 @@ private:
   StepBenchmarker& ticker;
 
 public:
-  SelfSimilarity(const std::size_t hist_len, const bool debug_mode = false);
+  SelfSimilarity(const std::size_t hist_len,
+                 const std::uint64_t current_time,
+                 const bool debug_mode = false);
+
   static float CalcFramesSimilarity(const cv::Mat &m1,
                                     const cv::Mat &m2,
                                     cv::Mat &buff,
                                     const unsigned int index,
                                     bool debug_mode);
 
-  void Calculate(const obz::mseq_t& sequence);
+  void Update(mseq_t& sequence,
+              std::uint64_t current_time,
+              const std::string &debug_folder = std::string());
+  void Reset();
 
+  std::size_t GetLastUpdateTime() const {return last_update_time;}
   const cv::Mat& GetSimMatrix() const;
   cv::Mat GetSimMatrixRendered() const;
   void WriteToDisk(

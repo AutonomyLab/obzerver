@@ -79,6 +79,8 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
           cv::OPTFLOW_LK_GET_MIN_EIGENVALS);
     tracked_features_prev.clear();
     tracked_features_curr.clear();
+//    tracked_features_prev.reserve(tracking_status.size());
+//    tracked_features_curr.reserve(tracking_status.size());
     for (size_t j = 0; j < tracking_status.size(); j++) {
       if (tracking_status[j]) {
         tracked_features_prev.push_back(detected_features_prev[j]);
@@ -97,7 +99,7 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
           tracked_features_curr,
           tracked_features_prev,
           CV_LMEDS,
-          1.0,
+          3.0,
           est_homography_outliers
           );
 
@@ -105,7 +107,7 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
                         cache_frame_stablized_gray,
                         est_homography_transform,
                         frame_gray_hist.latest().size(),
-                        cv::INTER_CUBIC,
+                        cv::INTER_LINEAR,
                         cv::BORDER_TRANSPARENT
                         );
 
@@ -114,7 +116,7 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
                           cache_frame_stablized_rgb,
                           est_homography_transform,
                           frame_gray_hist.latest().size(),
-                          cv::INTER_CUBIC,
+                          cv::INTER_LINEAR,
                           cv::BORDER_TRANSPARENT
                           );
     }

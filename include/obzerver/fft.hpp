@@ -23,6 +23,14 @@ protected:
 
 public:
   Periodicity(const std::size_t hist_len, const float fps);
+  void Update(const std::vector<float>& vec,
+              const bool average = false,
+              const bool verbose = false)
+  {
+    Update(cv::Mat(vec, false).t(), average, verbose);
+  }
+
+  // row vector
   void Update(const cv::Mat& vec, const bool average = false, const bool verbose = false);
 
   // At least get rid of DC Term

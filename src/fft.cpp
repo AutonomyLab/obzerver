@@ -46,31 +46,36 @@ float Periodicity::GetDominantFrequency(const std::size_t start_index) const {
   if (!fft_power.size()) return -1.0;
   CV_Assert(start_index < fft_power.size());
 
-  std::vector<float> fft_power_copy(fft_power);
+  std::vector<float> fft_power_copy(fft_power.size() - start_index);
 
   // Lazy way to remove low frequency components
-  for (std::size_t i = 0; i < start_index; i++) {
-    fft_power_copy[i] = 0.0;
+  for (std::size_t i = start_index; i < fft_power.size(); i++) {
+    fft_power_copy[i - start_index] = fft_power[i];
   }
+
 
   cv::Scalar mean, stddev;
   cv::meanStdDev(fft_power_copy, mean, stddev);
-  const double dom_freq_cst = mean[0] + 3.0 * stddev[0];
+  double sum = mean[0] * fft_power_copy.size();
+  const double dom_freq_c1 = mean[0] + 3.0 * stddev[0];
+  const double dom_freq_c2 = 0.1 * sum;
+
 
   LOG(INFO) << "[FFT] mean: " << mean[0] << " stddev: " << stddev[0]
-               << " dom thresh " << dom_freq_cst;
+            << " c1 thresh " << dom_freq_c1 << " sum " << sum
+            << " c2 thresh " << dom_freq_c2;
 
-  float max_power = fft_power_copy[start_index];
-  std::size_t max_power_freq_index = start_index;
-  for (std::size_t i = start_index+1; i < fft_power_copy.size(); i++) {
+  float max_power = fft_power_copy[0];
+  std::size_t max_power_freq_index = 0;
+  for (std::size_t i = 1; i < fft_power_copy.size(); i++) {
     if (fft_power_copy[i] > max_power) {
       max_power = fft_power_copy[i];
       max_power_freq_index = i;
     }
   }
 
-  if (max_power > dom_freq_cst) {
-    return float(max_power_freq_index) * fps / hist_len;
+  if (max_power > dom_freq_c1 /*&& max_power > dom_freq_c2*/) {
+    return float(max_power_freq_index + start_index) * fps / hist_len;
   }
 
   return -1.0;

@@ -9,6 +9,8 @@ TObject::TObject(const std::size_t hist_len, const float fps)
     hist_len(hist_len),
     fps(fps),
     obj_hist(hist_len),
+    motion_hist(hist_len),
+    optflow_hist(hist_len),
     sequence(hist_len)
 //    self_similarity(hist_len, false), // TODO
 //    periodicity(hist_len, fps)
@@ -23,11 +25,15 @@ void TObject::Reset() {
 
 void TObject::Update(const object_t &obj,
                      const cv::Mat &frame,
+                     const cv::Mat &diff_image,
+                     const float flow,
                      const bool reset) {
   if (reset) Reset();
   LOG(INFO) << "[TObj] Updating with: " << obj.bb << " | Reset: " << reset;
   obj_hist.push_front(obj);
   sequence.push_front(frame(obj.bb).clone());
+  motion_hist.push_front(cv::sum(diff_image(obj.bb))[0] / static_cast<float>(obj.bb.area()));
+  optflow_hist.push_front(flow);
 
   // Only calculate the self similarity matrix when:
   // 1) The caller explicitly asked us to
@@ -43,9 +49,12 @@ void TObject::Update(const object_t &obj,
 
 void TObject::Update(const cv::Rect &bb,
                      const cv::Mat &frame,
+                     const cv::Mat &diff_image, const float flow,
+//                     const pts_vec_t &prev_pts,
+//                     const pts_vec_t &curr_pts,
                      const bool reset) {
   object_t obj(bb);
-  Update(obj, frame, reset);
+  Update(obj, frame, diff_image, flow, reset);
 }
 
 }  // namespace obz

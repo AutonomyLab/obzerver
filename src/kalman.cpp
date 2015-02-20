@@ -94,6 +94,7 @@ obz::object_t ExKalmanFilter::Update(const cv::Mat &camera_transform)
 obz::object_t ExKalmanFilter::Update(const cv::Rect &obz, const cv::Mat &camera_transform)
 {
   Predict(camera_transform);
+
   measurement_(0, 0) = obz.x;
   measurement_(1, 0) = obz.y;
   measurement_(2, 0) = obz.width;

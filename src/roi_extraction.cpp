@@ -91,6 +91,12 @@ bool ROIExtraction::Update(
     if (cid == -1) continue;
     const cv::Point2f& pc = curr_features[i];
     const cv::Point2f& pp = prev_features[i];
+
+    if (diff_frame.at<uchar>(pc) < 5)
+    {
+      continue;
+    }
+
     if (rois_map_.count(cid) == 0)
     {
       rois_map_.insert(obz::roi_pair_t(cid, obz::roi_t()));
@@ -134,11 +140,13 @@ bool ROIExtraction::Update(
               << roi.optflow_per_feature
               << " " << r;
 
+    roi.bb = r;
+
     if (
         (r.width < min_roi_sz_.width || r.height < min_roi_sz_.height) ||
         (r.width > max_roi_sz_.width || r.height > max_roi_sz_.height) ||
-        (roi.diff_motion_per_pixel < min_motion_per_pixel_) ||
-        (roi.optflow_per_feature < min_optflow_per_feature_))
+        (roi.diff_motion_per_pixel < min_motion_per_pixel_) /*||
+        (roi.optflow_per_feature < min_optflow_per_feature_)*/)
     {
       continue;
     }
@@ -176,11 +184,11 @@ void ROIExtraction::DrawROIs(cv::Mat &frame, const bool verbose)
           cv::Scalar(255, 255, 255);
 
     text << "# " << cid << " MPP " << roi_pair.second.diff_motion_per_pixel
-            << " OFPF " << roi_pair.second.optflow_per_feature
-            << " " << bb;
-    if (verbose)
+            << " OFPF " << roi_pair.second.optflow_per_feature;
+//            << " " << bb;
+    if (true || verbose)
     {
-      cv::putText(frame, text.str(), cv::Point(bb.x, bb.y - 10), CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
+      cv::putText(frame, text.str(), cv::Point(bb.x, bb.br().y + 10), CV_FONT_HERSHEY_PLAIN, 1, cluster_color);
     }
     cv::rectangle(frame, bb, cluster_color);
     for (auto &p: curr_pts)
@@ -190,13 +198,14 @@ void ROIExtraction::DrawROIs(cv::Mat &frame, const bool verbose)
   }
 }
 
-std::size_t ROIExtraction::GetValidBBs(rect_vec_t &bb_vec) const
+std::size_t ROIExtraction::GetValidBBs(rect_vec_t &bb_vec, std::vector<float>& avg_flow) const
 {
   std::size_t count = 0;
   for (auto& roi_pair: rois_map_)
   {
     if (!roi_pair.second.valid) continue;
     bb_vec.push_back(roi_pair.second.bb);
+    avg_flow.push_back(roi_pair.second.optflow_per_feature);
     count++;
   }
   return count;
