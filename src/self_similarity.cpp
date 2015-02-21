@@ -79,12 +79,14 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
                                            const unsigned int index,
                                            bool debug_mode = false)
 {
-#if 0
+#if 1
   CV_Assert(m1.size() == m2.size());
-  cv::matchTemplate(m1, m2, buff, CV_TM_CCOEFF_NORMED);
-  double max_val = 0.0, min_val = 0.0;
-  cv::Point max_loc, min_loc;
-  cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
+//  cv::matchTemplate(m1, m2, buff, CV_TM_CCOEFF_NORMED);
+//  double max_val = 0.0, min_val = 0.0;
+//  cv::Point max_loc, min_loc;
+//  cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
+  cv::absdiff(m1, m2, buff);
+  float max_val = cv::sum(buff)[0];
 #else
   cv::Mat img, tmpl;
   int orig_width, orig_height;
@@ -161,8 +163,8 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
 
 //  }
 #endif
-  cv::matchTemplate(img, tmpl, buff, CV_TM_CCOEFF);
-  cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
+//  cv::matchTemplate(img, tmpl, buff, CV_TM_CCOEFF);
+//  cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
   return max_val;// / static_cast<float>(m1.rows * m1.cols);
 }
 

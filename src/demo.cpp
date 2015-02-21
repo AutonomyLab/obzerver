@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
                                     0.01,  // Min Avg Motion Per Pixel
                                     0.1,  // Min Avg Optical Flow Per Pixel
                                     0.75,  // Inflation: Width
-                                    0.25,  // Inflation: Height
+                                    0.50,  // Inflation: Height
                                     2);   // Num Threads
   obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);
 
@@ -258,18 +258,20 @@ int main(int argc, char* argv[]) {
         //          cv::imwrite("data/sim.bmp", diff_frame);
         //        }
         cv::Mat debug_frame = camera_tracker.GetStablizedGray();
-        roi_extraction.DrawROIs(frame, false);
+
         multi_object_tracker.DrawTracks(frame);
 //        object_tracker.DrawParticles(debug_frame);
 
-        if (camera_tracker.GetTrackedFeaturesCurr().size()) {
-          obz::util::DrawFeaturePointsTrajectory(frame,
-                                      camera_tracker.GetHomographyOutliers(),
-                                      camera_tracker.GetTrackedFeaturesPrev(),
-                                      camera_tracker.GetTrackedFeaturesCurr(),
-                                      2,
-                                      CV_RGB(0,0,255), CV_RGB(255, 0, 0), CV_RGB(255, 0, 0));
-        }
+//        if (camera_tracker.GetTrackedFeaturesCurr().size()) {
+//          obz::util::DrawFeaturePointsTrajectory(frame,
+//                                      camera_tracker.GetHomographyOutliers(),
+//                                      camera_tracker.GetTrackedFeaturesPrev(),
+//                                      camera_tracker.GetTrackedFeaturesCurr(),
+//                                      2,
+//                                      CV_RGB(0,0,255), CV_RGB(255, 0, 0), CV_RGB(255, 0, 0));
+//        }
+
+//        roi_extraction.DrawROIs(frame, false);
 
         cv::rectangle(diff_frame, cv::Rect(center.x - _w/2, center.y-_h/2, _w, _h), CV_RGB(255, 255, 255));
 

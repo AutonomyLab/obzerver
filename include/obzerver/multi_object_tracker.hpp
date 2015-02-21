@@ -20,6 +20,8 @@ namespace obz
 
 struct Track
 {
+  static const std::uint32_t UNKNOWN;
+  // 0 is reserved
   std::uint32_t uid;
   cv::Ptr<obz::TObject> object_ptr;
   cv::Ptr<obz::ExKalmanFilter> ekf_ptr;
@@ -40,11 +42,15 @@ struct Track
 //    PS_NUM
 //  } periodicity_state;
 
-  Track(const std::uint32_t uid = 0):
+  Track(const std::uint32_t uid = UNKNOWN):
     uid(uid), dom_freq(-1.0), skipped_frames(0), life(0) {}
 
   const cv::Rect& GetBB() const {return object_ptr->Get().bb;}
 };
+
+// uid -> Track
+typedef std::pair<uint32_t, Track> track_pair_t;
+typedef std::map<uint32_t, Track> tracks_map_t;
 
 // Forward Dec
 class MultiObjectTracker;
@@ -65,8 +71,11 @@ private:
   std::atomic<std::uint64_t> current_time;
   // uid = 0 is reserved
   std::uint32_t next_uid_;
-  // TODO: Optimize this
-  std::vector<Track> tracks_;
+  // uid->track
+  tracks_map_t tracks_;
+  // [0..tracks_.size]->uid
+  std::vector<std::uint32_t> tracks_indexes_;
+
   std::uint32_t history_len_; // for TObject
   float fps_;  // for TObject
   const std::uint32_t max_skipped_frames_;   // To lose track
@@ -74,27 +83,28 @@ private:
 
   /* Periodicity Thread Stuff */
   friend class PeriodicityWorkerThread;
-  std::atomic<std::int32_t> focus_track_index_;  // -1 not set
+  std::atomic<std::uint32_t> focus_track_uid_;  // -1 not set
   std::condition_variable pwt_condition_;
   std::atomic<bool> pwt_terminate_;
   std::mutex pwt_mutex_;
   std::thread pwt_thread_;
-  bool IsPWTFree() const {return false && focus_track_index_ == -1; }
-  bool SetPWTTrack(std::uint32_t track_index);
+  bool IsPWTFree() const {return focus_track_uid_ == Track::UNKNOWN; }
+  bool SetPWTTrack(std::uint32_t track_uid);
   bool ClearPWTTrack();
   void TerminatePWT();
 
+  std::uint32_t FindTrackIndex(const std::uint32_t track_uid);
   void CreateTrack(const cv::Rect& bb, const cv::Mat& frame, const cv::Mat& diff_frame, const float flow);
-  void DeleteTrack(const std::uint32_t track_index);
+  bool DeleteTrackIfStale(const std::uint32_t track_uid);
 
   // W/O obzervation
-  void UpdateTrack(const std::uint32_t track_index,
+  void UpdateTrack(const std::uint32_t track_uid,
                    const cv::Mat& frame,
                    const cv::Mat& diff_frame,
                    const cv::Mat& camera_transform);
 
   // W/ obzervation
-  void UpdateTrack(const std::uint32_t track_index,
+  void UpdateTrack(const std::uint32_t track_uid,
                    const cv::Rect& bb,
                    const cv::Mat& frame,
                    const cv::Mat& diff_frame,
@@ -114,7 +124,7 @@ public:
               const cv::Mat& camera_transform);
 
   std::size_t GetNumTracks() const {return tracks_.size();}
-  const std::vector<obz::Track>& GetTracks() const {return tracks_;}
+  const obz::tracks_map_t& GetTracks() const {return tracks_;}
 
   void DrawTracks(cv::Mat& frame);
 };
