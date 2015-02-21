@@ -92,7 +92,7 @@ bool ROIExtraction::Update(
     const cv::Point2f& pc = curr_features[i];
     const cv::Point2f& pp = prev_features[i];
 
-    if (diff_frame.at<uchar>(pc) < 10)
+    if (diff_frame.at<uchar>(pc) < 30)
     {
       continue;
     }

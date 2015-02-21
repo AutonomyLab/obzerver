@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
 //    cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK(param_ffd_threshold);
 //    cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector(param_max_features);
   obz::CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
-  obz::ROIExtraction roi_extraction(0.04, 10,
+  obz::ROIExtraction roi_extraction(0.15, 10,
                                     cv::Size(5, 10),
                                     cv::Size(100, 200),
                                     0.01,  // Min Avg Motion Per Pixel
@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
 //  }
 
 //  obz::PFObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
-  obz::MultiObjectTracker multi_object_tracker(120, fps, 20);
+  obz::MultiObjectTracker multi_object_tracker(120, fps, 60);
 
   int opengl_flags = 0;
   if (display)
@@ -192,19 +192,18 @@ int main(int argc, char* argv[]) {
         LOG(WARNING) << "Camera Tracker Failed";
         // TODO
       } else {
-        if (roi_extraction.Update(camera_tracker.GetTrackedFeaturesCurr(),
-                                  camera_tracker.GetTrackedFeaturesPrev(),
-                                  camera_tracker.GetLatestDiff()))
-        {
-          obz::rect_vec_t rois;
-          std::vector<float> flows;
-          roi_extraction.GetValidBBs(rois, flows);
-          multi_object_tracker.Update(rois,
-                                      flows,
-                                      camera_tracker.GetStablizedGray(),
-                                      camera_tracker.GetLatestDiff(),
-                                      camera_tracker.GetLatestCameraTransform().inv());
-        }
+        roi_extraction.Update(camera_tracker.GetTrackedFeaturesCurr(),
+                              camera_tracker.GetTrackedFeaturesPrev(),
+                              camera_tracker.GetLatestDiff());
+        obz::rect_vec_t rois;
+        std::vector<float> flows;
+        roi_extraction.GetValidBBs(rois, flows);
+        multi_object_tracker.Update(rois,
+                                    flows,
+                                    camera_tracker.GetStablizedGray(),
+                                    camera_tracker.GetLatestDiff(),
+                                    camera_tracker.GetLatestCameraTransform().inv());
+
 //        object_tracker.Update2(camera_tracker.GetStablizedGray(), // TODO
 //                               camera_tracker.GetLatestDiff(),
 //                               //                              camera_tracker.GetLatestSOF(),
@@ -271,7 +270,7 @@ int main(int argc, char* argv[]) {
 //                                      CV_RGB(0,0,255), CV_RGB(255, 0, 0), CV_RGB(255, 0, 0));
 //        }
 
-//        roi_extraction.DrawROIs(frame, false);
+        roi_extraction.DrawROIs(frame, false);
 
         cv::rectangle(diff_frame, cv::Rect(center.x - _w/2, center.y-_h/2, _w, _h), CV_RGB(255, 255, 255));
 

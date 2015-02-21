@@ -88,7 +88,7 @@ private:
   std::atomic<bool> pwt_terminate_;
   std::mutex pwt_mutex_;
   std::thread pwt_thread_;
-  bool IsPWTFree() const {return focus_track_uid_ == Track::UNKNOWN; }
+  bool IsPWTFree() const {return false && focus_track_uid_ == Track::UNKNOWN; }
   bool SetPWTTrack(std::uint32_t track_uid);
   bool ClearPWTTrack();
   void TerminatePWT();

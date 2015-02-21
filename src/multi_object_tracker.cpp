@@ -328,7 +328,7 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
 
   const std::size_t n_dets = detections.size();
   std::size_t n_tracks = 0;
-  const int max_cost = 200;
+  const int max_cost = 100;
 
   {
     std::unique_lock<std::mutex> lock(pwt_mutex_);
@@ -558,14 +558,12 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame)
   std::vector<float> flow_hist;
 
   std::unique_lock<std::mutex> lock(pwt_mutex_);
-  LOG(WARNING) << "[MOT] >>>>> " << tracks_.size();
   for (auto& track_pair: tracks_)
   {
       uid = track_pair.second.uid;
-      LOG(INFO) << "[MOT] " << uid << " while " << track_pair.first;
       bb = track_pair.second.GetBB();
-      dom_freq = track_pair.second.dom_freq;
-//      dom_freq = tracks_[t].per_ptr->GetDominantFrequency(1);
+//      dom_freq = track_pair.second.dom_freq;
+      dom_freq = track_pair.second.per_ptr->GetDominantFrequency(1);
       ss_mat = track_pair.second.self_similarity_rendered.clone();
       skipped_frames = track_pair.second.skipped_frames;
       avg_spectrum = track_pair.second.avg_spectrum;
