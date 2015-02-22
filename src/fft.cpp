@@ -53,7 +53,31 @@ float Periodicity::GetDominantFrequency(const std::size_t start_index) const {
     fft_power_copy[i - start_index] = fft_power[i];
   }
 
+  // TODO: Use OpenCV minmaxloc
+  float max_power = fft_power_copy[0];
+  float sum = cv::sum(fft_power_copy)[0];
+  std::size_t max_power_freq_index = 0;
+  for (std::size_t i = 1; i < fft_power_copy.size(); i++) {
+    if (fft_power_copy[i] > max_power) {
+      max_power = fft_power_copy[i];
+      max_power_freq_index = i;
+    }
+  }
 
+  float N = static_cast<float>(hist_len);
+  float freq = static_cast<float>(max_power_freq_index + start_index) * fps / N;
+  float T = max_power / sum;
+
+  // Use approx. Fisher significance test
+  // From: http://dx.doi.org/10.1080/10273660108833078
+
+  // P(T > t | Null Hypothesis)
+  float p_value = 1.0 - pow(1.0 - exp((-(N - 1.0) * T) / 2.0), N / 2.0);
+  LOG(INFO) << "[FFT] N: " << N << " T: " << T << " freq: " << freq << " p-value " << p_value;
+  CV_Assert(p_value >= 0.0 && p_value <= 1.0);
+
+  return p_value < 0.05 ? freq : -1.0;
+#if 0
   cv::Scalar mean, stddev;
   cv::meanStdDev(fft_power_copy, mean, stddev);
   double sum = mean[0] * fft_power_copy.size();
@@ -65,20 +89,14 @@ float Periodicity::GetDominantFrequency(const std::size_t start_index) const {
             << " c1 thresh " << dom_freq_c1 << " sum " << sum
             << " c2 thresh " << dom_freq_c2;
 
-  float max_power = fft_power_copy[0];
-  std::size_t max_power_freq_index = 0;
-  for (std::size_t i = 1; i < fft_power_copy.size(); i++) {
-    if (fft_power_copy[i] > max_power) {
-      max_power = fft_power_copy[i];
-      max_power_freq_index = i;
-    }
-  }
+
 
   if (max_power > dom_freq_c1 /*&& max_power > dom_freq_c2*/) {
     return float(max_power_freq_index + start_index) * fps / hist_len;
   }
-
   return -1.0;
+#endif
+
 }
 
 bool CalcVecDFT(const cv::Mat& vec_m,

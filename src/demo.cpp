@@ -72,6 +72,7 @@ int main(int argc, char* argv[])
 
   std::uint32_t param_mot_method;
   std::size_t param_mot_max_skipped_frames;
+  float param_mot_max_matching_cost;
 
   // This will be merged with config file options
   po::options_description po_generic_desc("Generic Options");
@@ -116,6 +117,7 @@ int main(int argc, char* argv[])
       ("roi.inflation_height", po::value<float>(&param_roi_inflation_height)->default_value(0.5), "How much to inflate the height of an extracted and accepted ROI (0.5: 0.25 increase for each side")
       ("mot.method", po::value<std::uint32_t>(&param_mot_method)->default_value(0), "Periodicity Detection Method 0: SelfSimilarity 1: Average Diff Motion")
       ("mot.max_skipped_frames", po::value<std::size_t>(&param_mot_max_skipped_frames)->default_value(30), "Maximum number of non-matching obzervation before deleting a track")
+      ("mot.max_matching_cost", po::value<float>(&param_mot_max_matching_cost)->default_value(100), "Maximum tolerable eucledian distance when mathcing tracks and observations (in pixels)")
 //      ("", po::value<>()->default_value(), "")
       ;
 
@@ -209,7 +211,8 @@ int main(int argc, char* argv[])
           obz::PERIODICITY_AVERAGEMOTION,
         param_hist_len,
         param_fps,
-        param_mot_max_skipped_frames);
+        param_mot_max_skipped_frames,
+        param_mot_max_matching_cost);
 
   obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);  
 

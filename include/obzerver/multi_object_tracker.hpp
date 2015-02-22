@@ -78,7 +78,8 @@ private:
   std::uint32_t history_len_;
   float fps_;
 
-  const std::uint32_t max_skipped_frames_;
+  std::uint32_t max_skipped_frames_;
+  float max_matching_cost_;
 
   // To permutate focus over all tracks
   std::uint64_t focus_order_;
@@ -112,7 +113,8 @@ public:
       const obz::periodicity_method_t periodicity_method,
       const std::uint32_t hist_len,
       const float fps,
-      const std::uint32_t max_skipped_frames);
+      const std::uint32_t max_skipped_frames,
+      const float max_matching_cost);
   ~MultiObjectTracker();
 
   // camera_transform is 3x3 homogenous transform to go from

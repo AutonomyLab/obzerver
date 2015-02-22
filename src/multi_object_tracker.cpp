@@ -18,19 +18,23 @@ MultiObjectTracker::MultiObjectTracker(
     const periodicity_method_t periodicity_method,
     const std::uint32_t history_len,
     const float fps,
-    const std::uint32_t max_skipped_frames)
+    const std::uint32_t max_skipped_frames,
+    const float max_matching_cost)
   : periodicity_method_(periodicity_method),
     current_time_(0),
     next_uid_(Track::UNKNOWN + 1),
     history_len_(history_len),
     fps_(fps),
     max_skipped_frames_(max_skipped_frames),
+    max_matching_cost_(max_matching_cost),
     focus_order_(0),
     focus_track_uid_(Track::UNKNOWN),
     pwt_terminate_(false),
     pwt_thread_(std::thread(obz::PeriodicityWorkerThread(*this)))
 {
-  LOG(INFO) << "[MOT] Self Similarity Method: " << periodicity_method_;
+  LOG(INFO) << "[MOT] Self Similarity Method: " << periodicity_method_
+            << " Max matching cost: " << max_matching_cost_
+            << " Max skipped frames: " << max_skipped_frames_;
 }
 
 MultiObjectTracker::~MultiObjectTracker()
@@ -180,7 +184,7 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
 
   const std::size_t n_dets = detections.size();
   std::size_t n_tracks = 0;
-  const int max_cost = 100;
+
 
   {
     std::unique_lock<std::mutex> lock(pwt_mutex_);
@@ -264,7 +268,7 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
     bool invalid_row = true;
     for (std::size_t d = 0; d < n_dets && invalid_row; d++)
     {
-      if (initial_cost(t, d) < max_cost) invalid_row = false;
+      if (initial_cost(t, d) < max_matching_cost_) invalid_row = false;
     }
     if (invalid_row)
     {
@@ -281,7 +285,7 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
     bool invalid_col = true;
     for (std::size_t t = 0; t < n_tracks && invalid_col; t++)
     {
-      if (initial_cost(t, d) < max_cost) invalid_col = false;
+      if (initial_cost(t, d) < max_matching_cost_) invalid_col = false;
     }
     if (invalid_col)
     {
@@ -297,7 +301,7 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
   // if candid track/match pair's cost is greater than max_cost, we
   // replace that cost with max_penalty to ensure that it will never
   // end up in the global solution
-  const int max_penalty = std::max(candid_tracks.size(), candid_detections.size()) * max_cost;
+  const int max_penalty = std::max(candid_tracks.size(), candid_detections.size()) * max_matching_cost_;
 
 //  LOG(INFO) << "[MOT] Candid Tracks: " << candid_tracks.size()
 //            << " Candid Dets: " << candid_detections.size()
@@ -317,7 +321,7 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
                                 obz::util::RectCenter(detections[candid_detections[d]]))));
 
         // Case II
-        cost(t, d) = c < max_cost ? c : max_penalty;
+        cost(t, d) = c < max_matching_cost_ ? c : max_penalty;
       }
     }
   }
