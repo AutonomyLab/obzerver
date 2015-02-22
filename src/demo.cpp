@@ -1,9 +1,11 @@
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 
-#include "glog/logging.h"
-#include "opencv2/features2d/features2d.hpp"
-#include "opencv2/highgui/highgui.hpp"
+#include <boost/program_options.hpp>
+#include <glog/logging.h>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include "obzerver/common_types.hpp"
 #include "obzerver/logger.hpp"
@@ -24,69 +26,124 @@ void mouseCallback(int event, int x, int y, int flags, void* data) {
   }
 }
 
-int main(int argc, char* argv[]) {
-
-  cv::CommandLineParser cmd(argc, argv,
-                            "{ v  | video | | specify video file}"
-                            "{ c  | cascade | | specify icf cascade file}"
-                            "{ d  | display | false | Show visualization }"
-                            "{ cl  | clear | false | Clear Terminal }"
-                            "{ p  | pause | false | Start in pause mode }"
-                            "{ ds | downsample | 1.0 | downsample (resize) factor (0.5: half) }"
-                            "{ l  | logfile | | specify log file (empty: log to stderr)}"
-                            "{ nf | numfeatures | 300 | Number of features to track for stablization}"
-                            "{ np | numparticles | 1000 | Number of particles}"
-                            "{ hi | history | 90 | Length of history (frames) }"
-                            "{ k  | skip | 0 | Starting frame }"
-                            "{ f  | fps | 30.0 | frames per second }"
-                            "{ e  | eval | false | evaluation mode }"
-                            "{ efl | decision_f_low | 1.0 | evaluation min frequency }"
-                            "{ efh | decision_f_high | 4.0 | evaluation max frequency }"
-                            "{ ep  | eval_file | /tmp/eval.jpg | image file to dump the decision bounding box to }"
-                            "{ lp | loop | false | loop video}"
-                            "{ h  | help | false | print help message }"
-                            );
-
+namespace po = boost::program_options;
+int main(int argc, char* argv[])
+{
   /* Params and Command Line */
 
-  const std::string video_src = cmd.get<std::string>("video");
-  const std::string cascade_src = cmd.get<std::string>("cascade");
-  const bool display = cmd.get<bool>("display");
-  const bool clear = cmd.get<bool>("clear");
-  const float downsample_factor = cmd.get<float>("downsample");
-  bool pause = cmd.get<bool>("pause");
-  const std::string logfile = cmd.get<std::string>("logfile");
-  const std::size_t start_frame = cmd.get<std::size_t>("skip");
-  const float fps = cmd.get<float>("fps");
+  std::string video_src;
+  std::string config_filename;
+  std::string cascade_src;
+  std::string logfile;
 
-  const std::size_t param_max_features = cmd.get<std::size_t>("numfeatures");
-  const std::size_t param_num_particles = cmd.get<std::size_t>("numparticles");
-  const std::size_t param_hist_len = cmd.get<std::size_t>("history");
-  const std::size_t param_pylk_winsize = 30;
-  const unsigned int param_pylk_iters = 30;
-  const double param_pylk_eps = 0.01;
+  bool display;
+  bool clear;
+  bool pause;
+  bool loop;
+  std::size_t start_frame;
 
-  const bool eval_mode = cmd.get<bool>("eval");
-  const float decision_f_low = cmd.get<float>("decision_f_low");
-  const float decision_f_high = cmd.get<float>("decision_f_high");
-  const std::string eval_file = cmd.get<std::string>("eval_file");
-  const bool loop = cmd.get<bool>("loop");
+  float param_downsample_factor;
+  float param_fps;
 
-  const int param_ffd_threshold = 30;
+  int param_ffd_threshold;
+  std::size_t param_max_features;
+  std::size_t param_hist_len;
+  std::size_t param_pylk_winsize;
+  std::size_t param_pylk_iters;
+  double param_pylk_eps;
 
-  if (cmd.get<bool>("help") || video_src.empty())
+  double param_dbs_eps;
+  std::size_t param_dbs_min_elements;
+  std::size_t param_dbs_threads;
+
+  float param_roi_min_motion_ppx;
+  float param_roi_min_motion_pft;
+  float param_roi_min_flow_ppx;
+  float param_roi_inflation_width;
+  float param_roi_inflation_height;
+
+  bool eval_mode;
+  float eval_decision_f_low;
+  float eval_decision_f_high;
+  std::string eval_file;
+
+
+  // This will be merged with config file options
+  po::options_description po_generic_desc("Generic Options");
+  po_generic_desc.add_options()
+      ("help,h", "Show help")
+      ("video,v", po::value<std::string>(&video_src), "Video file")
+      ("config,c", po::value<std::string>(&config_filename)->default_value(""), "Configuration File (INI)")
+      ("display,d", po::bool_switch(&display)->default_value(false), "Show visualization")
+      ("clear,cl", po::bool_switch(&clear)->default_value(false), "Clear Terminal")
+      ("pause,p", po::bool_switch(&pause)->default_value(false), "Start in pause mode")
+      ("logfile,l", po::value<std::string>(&logfile)->default_value(""), "specify log file (empty: log to stderr)")
+      ("skip,k", po::value<std::size_t>(&start_frame)->default_value(0), "Starting frame")
+      ("eval.enabled,e", po::bool_switch(&eval_mode)->default_value(false), "Evaluation (Experiment/Decistion) mode")
+      ("eval.file", po::value<std::string>(&eval_file)->default_value("/tmp/obzerver.png"), "Image file to dump the decision bounding box to")
+      ("loop", po::bool_switch(&loop)->default_value(false), "loop video")
+      ;
+
+  // Config file
+  po::options_description po_config_options("Configuration");
+  po_config_options.add_options()
+      ("history,hi", po::value<std::size_t>(&param_hist_len)->default_value(120), "Length of history (frames)")
+      ("fps", po::value<float>(&param_fps)->default_value(30.0), "frames per second")
+      ("downsample", po::value<float>(&param_downsample_factor)->default_value(1.0), "Downsample (resize) factor (0.5: half)")
+      ("eval.f_low", po::value<float>(&eval_decision_f_low)->default_value(0.9), "Decision min frequency")
+      ("eval.f_high", po::value<float>(&eval_decision_f_high)->default_value(3.1), "Decision max frequency")
+      ("icf.cascade", po::value<std::string>(&cascade_src), "icf cascade file")
+      ("stablize.numfeatures", po::value<std::size_t>(&param_max_features)->default_value(300), "Number of features to track for stablization")
+      ("stablize.ffd_threshold", po::value<int>(&param_ffd_threshold)->default_value(30), "Fast Feature Detector threshold")
+      ("stablize.pylk_winsize", po::value<std::size_t>(&param_pylk_winsize)->default_value(30), "Size of search window size for pylk")
+      ("stablize.pylk_iters", po::value<std::size_t>(&param_pylk_iters)->default_value(30), "Number of iterations for pylk")
+      ("stablize.pylk_eps", po::value<double>(&param_pylk_eps)->default_value(0.01), "pylk eps criteria")
+      ("dbscan.eps", po::value<double>(&param_dbs_eps)->default_value(0.04), "DBScan Threshold (0,1) ")
+      ("dbscan.min_elements", po::value<std::size_t>(&param_dbs_min_elements)->default_value(10), "in number of cluster members")
+      ("dbscan.threads", po::value<std::size_t>(&param_dbs_threads)->default_value(2), "DBScan OpenMP Threads")
+      ("roi.min_motion_ppx", po::value<float>(&param_roi_min_motion_ppx)->default_value(0.01), "Min sum(diff(roi))/roi.size() to accept the ROI")
+      ("roi.min_motion_pft", po::value<float>(&param_roi_min_motion_pft)->default_value(40), "Min diff value for a feature point to be considered for clustering")
+      ("roi.min_flow_ppx", po::value<float>(&param_roi_min_flow_ppx)->default_value(0.1), "Min sum(|flow(roi)|/roi.size() to accept the ROI")
+      ("roi.inflation_width", po::value<float>(&param_roi_inflation_width)->default_value(0.75), "How much to inflate the width of and extracted and accepted ROI (0.5: 0.25 increase for each side")
+      ("roi.inflation_height", po::value<float>(&param_roi_inflation_height)->default_value(0.5), "How much to inflate the height of an extracted and accepted ROI (0.5: 0.25 increase for each side")
+//      ("", po::value<>()->default_value(), "")
+      ;
+
+  // Generic and Config file options
+  po::options_description po_cmdline_options;
+  po_cmdline_options.add(po_generic_desc).add(po_config_options);
+
+  // Parse all first
+  po::variables_map po_vm;
+  po::store(po::parse_command_line(argc, argv, po_cmdline_options), po_vm);
+  po::notify(po_vm);
+
+  if (!config_filename.empty())
   {
-    cmd.printParams();
-    return 1;
+    std::ifstream config_file(config_filename);
+    if (config_file)
+    {
+      po::store(po::parse_config_file(config_file, po_config_options), po_vm);
+      po::notify(po_vm);
+    }
+    else
+    {
+      std::cerr << "Can not open the configuration file " << config_file << std::endl;
+      return 1;
+    }
   }
 
-  const bool use_webcam  = (video_src.compare("cam") == 0);
+  if (po_vm.count("help") || video_src.empty())
+  {
+    std::cout << po_cmdline_options << std::endl;
+  }
 
   /* Logger */
 
   obz::log_config(argv[0], logfile);
 
   /* Variables */
+  const bool use_webcam  = (video_src.compare("cam") == 0);
   unsigned long int frame_counter = 0;
   cv::Mat frame;
   cv::Mat frame_gray;
@@ -100,19 +157,29 @@ int main(int argc, char* argv[]) {
 //  cv::Ptr<ccv::ICFCascadeClassifier> ccv_icf_ptr = 0;
 //    cv::Ptr<cv::FeatureDetector> feature_detector = new cv::BRISK(param_ffd_threshold);
 //    cv::Ptr<cv::FeatureDetector> feature_detector = new cv::GoodFeaturesToTrackDetector(param_max_features);
-  obz::CameraTracker camera_tracker(param_hist_len, feature_detector, param_max_features, param_pylk_winsize, param_pylk_iters, param_pylk_eps);
-  obz::ROIExtraction roi_extraction(0.15, 10,
+
+  obz::CameraTracker camera_tracker(param_hist_len,
+                                    feature_detector,
+                                    param_max_features,
+                                    param_pylk_winsize,
+                                    param_pylk_iters,
+                                    param_pylk_eps);
+
+  obz::ROIExtraction roi_extraction(param_dbs_eps,
+                                    param_dbs_min_elements,
                                     cv::Size(5, 10),
                                     cv::Size(100, 200),
-                                    0.01,  // Min Avg Motion Per Pixel
-                                    0.1,  // Min Avg Optical Flow Per Pixel
-                                    0.75,  // Inflation: Width
-                                    0.50,  // Inflation: Height
-                                    2);   // Num Threads
+                                    param_roi_min_motion_ppx,  // Min Avg Motion Per Pixel
+                                    param_roi_min_motion_pft,  //
+                                    param_roi_min_flow_ppx,  // Min Avg Optical Flow Per Pixel
+                                    param_roi_inflation_width,  // Inflation: Width
+                                    param_roi_inflation_height,  // Inflation: Height
+                                    param_dbs_threads);   // Num Threads
   obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);
 
   LOG(INFO) << "Video Source: " << video_src;
   LOG(INFO) << "Feature Detector: " << feature_detector->name();
+  LOG(INFO) << "Config file: " << config_filename;
 
 //  if (!cascade_src.empty())
 //  {
@@ -129,7 +196,7 @@ int main(int argc, char* argv[]) {
 //  }
 
 //  obz::PFObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
-  obz::MultiObjectTracker multi_object_tracker(120, fps, 60);
+  obz::MultiObjectTracker multi_object_tracker(120, param_fps, 60);
 
   int opengl_flags = 0;
   if (display)
@@ -144,7 +211,7 @@ int main(int argc, char* argv[]) {
   }
 
 
-  long int num_frames = 0;
+  std::size_t num_frames = 0;
 
   try {
     if (use_webcam && !capture.open(0)) {
@@ -176,8 +243,8 @@ int main(int argc, char* argv[]) {
     ticker.reset();
     while (capture.read(frame)) {
       ticker.tick("ML_Frame_Capture");
-      if (downsample_factor < 1.0 && downsample_factor > 0.0) {
-        cv::resize(frame, frame, cv::Size(0, 0), downsample_factor, downsample_factor, cv::INTER_CUBIC);
+      if (param_downsample_factor < 1.0 && param_downsample_factor > 0.0) {
+        cv::resize(frame, frame, cv::Size(0, 0), param_downsample_factor, param_downsample_factor, cv::INTER_CUBIC);
         ticker.tick("ML_Downsampling");
       }
       LOG(INFO) << "Frame: " << frame_counter << " [" << frame.cols << " x " << frame.rows << "]";
@@ -194,6 +261,7 @@ int main(int argc, char* argv[]) {
       } else {
         roi_extraction.Update(camera_tracker.GetTrackedFeaturesCurr(),
                               camera_tracker.GetTrackedFeaturesPrev(),
+                              camera_tracker.GetHomographyOutliers(),
                               camera_tracker.GetLatestDiff());
         obz::rect_vec_t rois;
         std::vector<float> flows;

@@ -108,9 +108,11 @@ void DrawWeightedFeaturePoints(
 
 void DrawFeaturePointsTrajectory(cv::Mat& frame,
                                  const cv::Mat& outliers,
-                                 const std::vector<cv::Point2f>& points_prev, const std::vector<cv::Point2f>& points_cur,
+                                 const std::vector<cv::Point2f>& points_prev,
+                                 const std::vector<cv::Point2f>& points_cur,
                                  int rad,
-                                 const cv::Scalar& color_prev, const cv::Scalar& color_cur, const cv::Scalar& color_line)
+                                 const cv::Scalar& color_prev,
+                                 const cv::Scalar& color_cur, const cv::Scalar& color_line)
 {
     CV_Assert(points_prev.size() == points_cur.size());
     for (unsigned int i = 0; i < points_prev.size(); i++) {

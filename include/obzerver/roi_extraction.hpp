@@ -1,7 +1,6 @@
 #ifndef ROI_EXTRACTION
 #define ROI_EXTRACTIOn
 
-#include "obzerver/benchmarker.hpp"
 #include "obzerver/common_types.hpp"
 #include "dbscan/dbscan.h"
 
@@ -20,6 +19,7 @@ private:
 
   // Avg values
   float min_motion_per_pixel_;
+  float min_motion_per_feature_;
   float min_optflow_per_feature_;
 
   float inf_factor_width_;
@@ -32,7 +32,6 @@ private:
   clustering::DBSCAN::ClusterData dbs_data_;
   clustering::DBSCAN dbs_engine_;
 
-  StepBenchmarker& ticker;
 public:
   ROIExtraction();
   ROIExtraction(const double dbs_eps,
@@ -40,15 +39,17 @@ public:
                 const cv::Size& min_roi_sz,
                 const cv::Size& max_roi_sz,
                 const float min_motion_per_pixel,
+                const float min_motion_per_feature,
                 const float min_optflow_per_feature,
                 const float inflation_width,
                 const float inflation_height,
-                const std::size_t dbs_num_threads = 1);
+                const std::size_t dbs_num_threads);
 
   ~ROIExtraction();
 
-  bool Update(const obz::pts_vec_t& curr_features,
-              const obz::pts_vec_t& prev_features,
+  bool Update(const obz::pts_vec_t& curr_tracked_features,
+              const obz::pts_vec_t& prev_tracked_features,
+              const cv::Mat& curr_outlier_features,
               const cv::Mat& diff_frame);
 
   // This function appends data to bb_vec

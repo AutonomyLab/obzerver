@@ -68,6 +68,14 @@ pkg_check_modules(GLOG REQUIRED libglog)
 include_directories(${GLOG_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${GLOG_LIBRARIES})
 
+## Boost (for program options)
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+find_package(Boost 1.45.0 REQUIRED COMPONENTS program_options)
+include_directories(${Boost_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${Boost_LIBRARIES})
+
 # -march=corei7-avx -mtune=corei7-avx -mno-avx -mno-aes
 # -fopenmp is because of upstram dbscan, fix it
 set(CMAKE_OPT_FLAGS "-march=native -ffast-math -funroll-loops")

@@ -1,6 +1,6 @@
 #include "obzerver/utility.hpp"
 #include "obzerver/roi_extraction.hpp"
-
+#include "obzerver/benchmarker.hpp"
 
 #include <glog/logging.h>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -16,11 +16,12 @@ ROIExtraction::ROIExtraction()
     min_roi_sz_(cv::Size(0, 0)),
     max_roi_sz_(cv::Size(100, 100)),
     min_motion_per_pixel_(5.0),
+    min_motion_per_feature_(5.0),
+    min_optflow_per_feature_(2.0),
     inf_factor_width_(0.0),
     inf_factor_height_(0.0),
     dbs_num_threads_(1.0),
-    dbs_engine_(dbs_eps_, dbs_min_elements_, dbs_num_threads_),
-    ticker(StepBenchmarker::GetInstance())
+    dbs_engine_(dbs_eps_, dbs_min_elements_, dbs_num_threads_)
 {}
 
 ROIExtraction::ROIExtraction(const double dbs_eps,
@@ -28,6 +29,7 @@ ROIExtraction::ROIExtraction(const double dbs_eps,
                              const cv::Size &min_roi_sz,
                              const cv::Size &max_roi_sz,
                              const float min_motion_per_pixel,
+                             const float min_motion_per_feature,
                              const float min_optflow_per_feature,
                              const float inflation_width,
                              const float inflation_height,
@@ -37,12 +39,12 @@ ROIExtraction::ROIExtraction(const double dbs_eps,
     min_roi_sz_(min_roi_sz),
     max_roi_sz_(max_roi_sz),
     min_motion_per_pixel_(min_motion_per_pixel),
+    min_motion_per_feature_(min_motion_per_feature),
     min_optflow_per_feature_(min_optflow_per_feature),
     inf_factor_width_(inflation_width),
     inf_factor_height_(inflation_height),
     dbs_num_threads_(dbs_num_threads),
-    dbs_engine_(dbs_eps_, dbs_min_elements_, dbs_num_threads_),
-    ticker(StepBenchmarker::GetInstance())
+    dbs_engine_(dbs_eps_, dbs_min_elements_, dbs_num_threads_)
 {
   CV_Assert(inf_factor_width_ >= 0.0 && inf_factor_height_ >= 0.0);
   LOG(INFO) << "[ROI] dps_eps: " << dbs_eps_ << " dbs_min_elements: " << dbs_min_elements_;
@@ -52,26 +54,27 @@ ROIExtraction::~ROIExtraction()
 {}
 
 bool ROIExtraction::Update(
-    const obz::pts_vec_t &curr_features,
-    const obz::pts_vec_t &prev_features,
-    const cv::Mat &diff_frame)
+    const obz::pts_vec_t& curr_tracked_features,
+    const obz::pts_vec_t& prev_tracked_features,
+    const cv::Mat& curr_outlier_features,
+    const cv::Mat& diff_frame)
 {
-  CV_Assert(curr_features.size() == prev_features.size());
+  CV_Assert(curr_tracked_features.size() == prev_tracked_features.size());
   CV_Assert(diff_frame.channels() == 1);
 
-  dbs_data_.resize(curr_features.size(), 2);
-  for (std::size_t i = 0; i < curr_features.size(); i++)
+  dbs_data_.resize(curr_tracked_features.size(), 2);
+  for (std::size_t i = 0; i < curr_tracked_features.size(); i++)
   {
-    const cv::Point2f& p = curr_features[i];
+    const cv::Point2f& p = curr_tracked_features[i];
     dbs_data_(i, 0) = -1.0 + ((2.0 * p.x) / diff_frame.cols);
     dbs_data_(i, 1) = -1.0 + ((2.0 * p.y) / diff_frame.rows);
   }
 
-  ticker.tick("RO_Features_to_Mat");
+  TICK("RO_Features_to_Mat");
   dbs_engine_.init(dbs_eps_, dbs_min_elements_, dbs_num_threads_);
   dbs_engine_.reset();
   dbs_engine_.fit(dbs_data_);
-  ticker.tick("RO_Clustering");
+  TICK("RO_Clustering");
 
   // Skip memory re-allocation as much as possible
 //  for (auto &roi_pair: rois_map)
@@ -82,17 +85,17 @@ bool ROIExtraction::Update(
   rois_map_.clear();
 
   const clustering::DBSCAN::Labels& cluster_labels = dbs_engine_.get_labels();
-  CV_Assert(cluster_labels.size() == curr_features.size());
+  CV_Assert(cluster_labels.size() == curr_tracked_features.size());
 
   std::size_t num_clusters = 0;
   for (std::size_t i = 0; i < cluster_labels.size(); i++)
   {
     const std::int32_t cid = cluster_labels[i];
     if (cid == -1) continue;
-    const cv::Point2f& pc = curr_features[i];
-    const cv::Point2f& pp = prev_features[i];
+    const cv::Point2f& pc = curr_tracked_features[i];
+    const cv::Point2f& pp = prev_tracked_features[i];
 
-    if (diff_frame.at<uchar>(pc) < 30)
+    if (diff_frame.at<uchar>(pc) < min_motion_per_feature_)
     {
       continue;
     }
@@ -120,24 +123,24 @@ bool ROIExtraction::Update(
           cv::Rect(0, 0, diff_frame.cols-1, diff_frame.rows-1));
 
 
-    roi.diff_motion_per_pixel = cv::mean(diff_frame(r))[0];
+    roi.avg_diff_motion_per_pixel = cv::mean(diff_frame(r))[0];
 
     CV_Assert(roi.curr_pts.size() == roi.prev_pts.size());
 
-    roi.optflow_per_feature = 0.0;
+    roi.avg_optflow_per_feature = 0.0;
     for (std::size_t i = 0; i < roi.curr_pts.size(); i++)
     {
       const cv::Point2f f = roi.prev_pts[i] - roi.curr_pts[i];
-      roi.optflow_per_feature +=  sqrt((f.x * f.x) + (f.y * f.y));
+      roi.avg_optflow_per_feature +=  sqrt((f.x * f.x) + (f.y * f.y));
     }
-    roi.optflow_per_feature = roi.optflow_per_feature /
+    roi.avg_optflow_per_feature = roi.avg_optflow_per_feature /
         static_cast<float>(roi.curr_pts.size());
 
 
     LOG(INFO) << "*** ROI: "
-              << roi.diff_motion_per_pixel
+              << roi.avg_diff_motion_per_pixel
               << " "
-              << roi.optflow_per_feature
+              << roi.avg_optflow_per_feature
               << " " << r;
 
     roi.bb = r;
@@ -145,7 +148,7 @@ bool ROIExtraction::Update(
     if (
         (r.width < min_roi_sz_.width || r.height < min_roi_sz_.height) ||
         (r.width > max_roi_sz_.width || r.height > max_roi_sz_.height) ||
-        (roi.diff_motion_per_pixel < min_motion_per_pixel_) /*||
+        (roi.avg_diff_motion_per_pixel < min_motion_per_pixel_) /*||
         (roi.optflow_per_feature < min_optflow_per_feature_)*/)
     {
       continue;
@@ -160,7 +163,7 @@ bool ROIExtraction::Update(
   }
   LOG(INFO) << "[ROI] Number of clusters (post-filter): " << num_clusters;
 
-  ticker.tick("RO_Clustering_PP");
+  TICK("RO_Clustering_PP");
   return num_clusters > 0;
 }
 
@@ -183,8 +186,9 @@ void ROIExtraction::DrawROIs(cv::Mat &frame, const bool verbose)
         :
           cv::Scalar(255, 255, 255);
 
-    text << "# " << cid << " MPP " << roi_pair.second.diff_motion_per_pixel
-            << " OFPF " << roi_pair.second.optflow_per_feature;
+    text << "# " << cid
+         << " MPP "  << roi_pair.second.avg_diff_motion_per_pixel
+         << " OFPF " << roi_pair.second.avg_optflow_per_feature;
 //            << " " << bb;
     if (true || verbose)
     {
@@ -205,7 +209,7 @@ std::size_t ROIExtraction::GetValidBBs(rect_vec_t &bb_vec, std::vector<float>& a
   {
     if (!roi_pair.second.valid) continue;
     bb_vec.push_back(roi_pair.second.bb);
-    avg_flow.push_back(roi_pair.second.optflow_per_feature);
+    avg_flow.push_back(roi_pair.second.avg_optflow_per_feature);
     count++;
   }
   return count;
