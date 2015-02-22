@@ -74,7 +74,7 @@ float Periodicity::GetDominantFrequency(const std::size_t start_index) const {
   // P(T > t | Null Hypothesis)
   float p_value = 1.0 - pow(1.0 - exp((-(N - 1.0) * T) / 2.0), N / 2.0);
 //  LOG(INFO) << "[FFT] N: " << N << " T: " << T << " freq: " << freq << " p-value " << p_value;
-  CV_Assert(p_value >= 0.0 && p_value <= 1.0);
+  p_value = util::clamp(p_value, 0.0, 1.0);
 
   return p_value < 0.05 ? freq : -1.0;
 #if 0

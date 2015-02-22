@@ -13,9 +13,10 @@ cd $TMP_DIR
 
 echo "Installing dependencies ..."
 
-sudo apt-get update -qq
+#sudo apt-get update -qq
 # Except for glog, all other are ccv deps (not all required though)
-sudo apt-get install -qy libgoogle-glog-dev clang libjpeg-dev libpng-dev libdispatch-dev libgsl0-dev liblas-dev libfftw3-dev liblinear-dev libavcodec-dev libavformat-dev libswscale-dev
+#sudo apt-get install -qy libgoogle-glog-dev libgsl0-dev
+#sudo apt-get install -qy libgoogle-glog-dev clang libjpeg-dev libpng-dev libdispatch-dev libgsl0-dev liblas-dev libfftw3-dev liblinear-dev libavcodec-dev libavformat-dev libswscale-dev
 
 echo "Downloading samples ..."
 wget --quiet -nc http://autolab.cmpt.sfu.ca/files/waving_sample_1.tar.gz
@@ -42,8 +43,8 @@ do
     --fps=29.97 \
     --video $file \
     --logfile ./log/$file.log \
-    --config ../config/ucf_arg.ini \
-    1>&2 2>/dev/null
+    --config ./obzerver/config/ucf_arg.ini \
+    #1>&2 2>/dev/null
 done
 
 echo "Generating Results ..."
