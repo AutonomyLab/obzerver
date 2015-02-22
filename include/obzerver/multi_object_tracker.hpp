@@ -18,6 +18,7 @@
 namespace obz
 {
 
+// TODO: Convert it into a class + Make a simple track_t datastructure for public usage
 struct Track
 {
   static const std::uint32_t UNKNOWN;
@@ -126,9 +127,14 @@ public:
               const cv::Mat& camera_transform);
 
   std::size_t GetNumTracks() const {return tracks_.size();}
+
+  // This is not thread-safe when using SS
   const obz::tracks_map_t& GetTracks() const {return tracks_;}
 
-  void DrawTracks(cv::Mat& frame);
+  // This is thread-safe (clears and resizes the vector)
+  std::size_t CopyAllTracks(std::vector<obz::Track>& tracks_vec);
+
+  void DrawTracks(cv::Mat& frame, const bool verbose = false);
 };
 }
 

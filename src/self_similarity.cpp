@@ -79,6 +79,9 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
                                            const unsigned int index,
                                            bool debug_mode = false)
 {
+
+(void) index;
+(void) debug_mode;
 #if 0
   CV_Assert(m1.size() == m2.size());
 //  cv::matchTemplate(m1, m2, buff, CV_TM_CCOEFF_NORMED);

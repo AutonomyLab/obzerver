@@ -29,7 +29,7 @@ void TObject::Update(const object_t &obj,
                      const float flow,
                      const bool reset) {
   if (reset) Reset();
-  LOG(INFO) << "[TObj] Updating with: " << obj.bb << " | Reset: " << reset;
+//  LOG(INFO) << "[TObj] Updating with: " << obj.bb << " | Reset: " << reset;
   obj_hist.push_front(obj);
   sequence.push_front(frame(obj.bb).clone());
   motion_hist.push_front(cv::sum(diff_image(obj.bb))[0] / static_cast<float>(obj.bb.area()));

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <map>
 
 #include <boost/program_options.hpp>
 #include <glog/logging.h>
@@ -68,6 +69,7 @@ int main(int argc, char* argv[])
   bool eval_mode;
   float eval_decision_f_low;
   float eval_decision_f_high;
+  std::size_t eval_min_hit_frames;
   std::string eval_file;
 
   std::uint32_t param_mot_method;
@@ -101,6 +103,7 @@ int main(int argc, char* argv[])
       ("downsample", po::value<float>(&param_downsample_factor)->default_value(1.0), "Downsample (resize) factor (0.5: half)")
       ("eval.f_low", po::value<float>(&eval_decision_f_low)->default_value(0.9), "Decision min frequency")
       ("eval.f_high", po::value<float>(&eval_decision_f_high)->default_value(3.1), "Decision max frequency")
+      ("eval.min_frames", po::value<std::size_t>(&eval_min_hit_frames)->default_value(5), "Minimum number of consequtive positive hits before making the decision")
       ("icf.cascade", po::value<std::string>(&cascade_src), "icf cascade file")
       ("stablize.numfeatures", po::value<std::size_t>(&param_max_features)->default_value(300), "Number of features to track for stablization")
       ("stablize.ffd_threshold", po::value<int>(&param_ffd_threshold)->default_value(30), "Fast Feature Detector threshold")
@@ -155,19 +158,19 @@ int main(int argc, char* argv[])
   obz::log_config(argv[0], logfile);
 
   /* Initial Logging */
-  LOG(INFO) << "Video Source: " << video_src;
-  LOG(INFO) << "Logfile: " << logfile;
+  LOG(INFO) << "[ML] Video Source: " << video_src;
+  LOG(INFO) << "[ML] Logfile: " << logfile;
   if (!config_filename.empty())
   {
-    LOG(INFO) << "Config file: " << config_filename;
-    LOG(INFO) << "---------------------------------";
+    LOG(INFO) << "[ML] Config file: " << config_filename;
+    LOG(INFO) << "[ML] ---------------------------------";
     std::ifstream config_file(config_filename);
     std::string line;
     while (std::getline(config_file, line))
     {
-      LOG(INFO) << line;
+      LOG(INFO) << "[ML] " << line;
     }
-    LOG(INFO) << "---------------------------------";
+    LOG(INFO) << "[ML] ---------------------------------";
   }
 
   /* Variables */
@@ -224,19 +227,22 @@ int main(int argc, char* argv[])
       opengl_flags = cv::WINDOW_OPENGL;
       cv::destroyWindow("dummy");
     } catch (const cv::Exception& ex) {
-      LOG(WARNING) << "OpenCV without OpenGL support.";
+      LOG(WARNING) << "[ML] OpenCV without OpenGL support.";
     }
   }
 
 
   std::size_t num_frames = 0;
+  std::size_t eval_frame_counter = 0;
+  std::size_t eval_uid = 0;
+  bool eval_done = false;
 
   try {
     if (use_webcam && !capture.open(0)) {
-      LOG(ERROR) << "Can not webcam";
+      LOG(ERROR) << "[ML] Can not webcam";
       return 1;
     } else if (!use_webcam && !capture.open(video_src)) {
-      LOG(ERROR) << "Can not open file: " << video_src;
+      LOG(ERROR) << "[ML] Can not open file: " << video_src;
       return 1;
     }
     num_frames = use_webcam ? 0 : capture.get(CV_CAP_PROP_FRAME_COUNT);
@@ -245,7 +251,7 @@ int main(int argc, char* argv[])
       capture.set(CV_CAP_PROP_POS_FRAMES, frame_counter);
     }
     if (!use_webcam) {
-      LOG(INFO) << "Openning file: " << video_src << " frames: " << capture.get(CV_CAP_PROP_FRAME_COUNT);
+      LOG(INFO) << "[ML] Openning file: " << video_src << " frames: " << capture.get(CV_CAP_PROP_FRAME_COUNT);
     }
     if (display) {      
       cv::namedWindow("Original", cv::WINDOW_AUTOSIZE | opengl_flags);
@@ -259,13 +265,13 @@ int main(int argc, char* argv[])
     }
 
     ticker.reset();
-    while (capture.read(frame)) {
+    while (capture.read(frame) && !(eval_mode && eval_done)) {
       ticker.tick("ML_Frame_Capture");
       if (param_downsample_factor < 1.0 && param_downsample_factor > 0.0) {
         cv::resize(frame, frame, cv::Size(0, 0), param_downsample_factor, param_downsample_factor, cv::INTER_CUBIC);
         ticker.tick("ML_Downsampling");
       }
-      LOG(INFO) << "Frame: " << frame_counter << " [" << frame.cols << " x " << frame.rows << "]";
+      LOG(INFO) << "[ML] Frame: " << frame_counter << " [" << frame.cols << " x " << frame.rows << "]";
       if (display && !use_webcam && (frame_counter % 10 == 0)) cv::setTrackbarPos("Browse", "Original", frame_counter);
       cv::cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
 //      cv::equalizeHist(frame_gray, frame_gray);
@@ -274,7 +280,7 @@ int main(int argc, char* argv[])
 //      cv::Point2d center;
 //      double _w=0.0, _h=0.0, _f=-1.0;
       if (!ct_success) {
-        LOG(WARNING) << "Camera Tracker Failed";
+        LOG(WARNING) << "[ML] Camera Tracker Failed";
         // TODO
       } else {
         roi_extraction.Update(camera_tracker.GetTrackedFeaturesCurr(),
@@ -282,6 +288,7 @@ int main(int argc, char* argv[])
                               camera_tracker.GetLatestDiff());
         obz::rect_vec_t rois;
         std::vector<float> flows;
+        std::vector<obz::Track> tracks;
         roi_extraction.GetValidBBs(rois, flows);
         multi_object_tracker.Update(rois,
                                     flows,
@@ -289,24 +296,63 @@ int main(int argc, char* argv[])
                                     camera_tracker.GetLatestDiff(),
                                     camera_tracker.GetLatestCameraTransform().inv());
 
-//        LOG(INFO) << "Tracking status: " << object_tracker.GetStatus();
-//        if (object_tracker.IsTracking()) {
-//          _f = object_tracker.GetObject().GetPeriodicity().GetDominantFrequency(1); // TODO
-//          LOG(INFO) << "Object: "
-//                    << object_tracker.GetObjectBoundingBox()
-//                    << " Periodicity:"
-//                    << _f;
-//          //LOG(INFO) << "Spectrum: " << cv::Mat(object_tracker.GetObject().GetPeriodicity().GetSpectrum(), false);
-//          if (eval_mode && _f >= decision_f_low && _f <= decision_f_high)
-//          {
-//            cv::imwrite(eval_file,
-//                        camera_tracker.GetStablizedGray()(
-//                          object_tracker.GetObjectBoundingBox()).clone());
-//            LOG(ERROR) << "######## DECISION MADE : " << _f;
-//            break;
-//          }
-//        }
+        std::size_t num_tracks = multi_object_tracker.CopyAllTracks(tracks);
 
+        // uid -> index
+        std::map<std::size_t, std::size_t> periodic_uids_map;
+        for (std::size_t i = 0; i < num_tracks; i++)
+        {
+          const obz::Track& tr = tracks[i];
+          LOG(INFO) << "[ML] uid: " << tr.uid
+                    << " bb: " << tr.GetBB()
+                    << " freq: " << tr.dom_freq;
+          if ((tr.dom_freq >= eval_decision_f_low) &&
+              (tr.dom_freq < eval_decision_f_high))
+          {
+            periodic_uids_map.insert(std::pair<std::size_t, std::size_t>(tr.uid, i));
+          }
+        }
+
+        LOG(INFO) << "[ML] Number of periodic tracks: " << periodic_uids_map.size();
+
+        if (eval_mode)
+        {
+          if (eval_uid)
+          {
+            if (periodic_uids_map.count(eval_uid))
+            {
+              eval_frame_counter++;
+            }
+            else
+            {
+              eval_uid = 0;
+              eval_frame_counter = 0;
+            }
+          }
+          else
+          {
+            if (periodic_uids_map.size())
+            {
+              // TODO: What if there are more than one periodic tracks?
+              eval_uid = (*(periodic_uids_map.begin())).first;
+              eval_frame_counter = 1;
+            }
+          }
+        }
+
+        if (eval_frame_counter > eval_min_hit_frames)
+        {
+          const obz::Track& tr = tracks[periodic_uids_map[eval_uid]];
+          LOG(INFO) << "[ML] Decision Made: " << eval_file;
+          cv::imwrite(eval_file, camera_tracker.GetStablizedRGB()(tr.GetBB()).clone());
+          std::ofstream metadata_file(eval_file + std::string(".txt"), std::ios::out);
+          metadata_file << tr.uid << std::endl;
+          metadata_file << tr.GetBB() << std::endl;
+          metadata_file << tr.dom_freq << std::endl;
+          metadata_file << cv::Mat(tr.avg_spectrum, false).t() << std::endl;
+          metadata_file.close();
+          eval_done = true;
+        }
       }
 
       if (display) {
@@ -341,11 +387,11 @@ int main(int argc, char* argv[])
         cv::waitKey(5);
         ticker.tick("ML_Visualization");
       }
-      LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
+      LOG(INFO) << "[ML] Timing info" << std::endl << ticker.getstr(clear);
       //ticker.dump(clear);
       while (display && pause) cv::waitKey(100);
       frame_counter++;
-      LOG(INFO) << frame_counter << " / " << num_frames;
+      LOG(INFO) << "[ML] " << frame_counter << " / " << num_frames;
       if (!use_webcam && loop && frame_counter == num_frames-1)
       {
         frame_counter = start_frame;
@@ -354,13 +400,21 @@ int main(int argc, char* argv[])
       ticker.reset();
     }
   } catch (const std::runtime_error& e) {
-//  } catch (const cv::Exception& ex) {
-//    LOG(ERROR) << "Exception: " << ex.what();
-//    if (capture.isOpened()) capture.release();
-//    LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
+  } catch (const cv::Exception& ex) {
+    LOG(ERROR) << "[ML] Exception: " << ex.what();
+    if (capture.isOpened()) capture.release();
+    LOG(INFO) << "[ML] Timing info" << std::endl << ticker.getstr(clear);
     return 1;
   }
   if (capture.isOpened()) capture.release();
-  LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
+
+  if (eval_mode && !eval_done)
+  {
+    LOG(INFO) << "[ML] Evaluation failed";
+    std::ofstream metadata_file(eval_file + std::string(".txt"), std::ios::out);
+    // uid: 0 means no target was found in this sequence
+    metadata_file << 0 << std::endl;
+    metadata_file.close();
+  }
   return 0;
 }

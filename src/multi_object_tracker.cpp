@@ -68,6 +68,7 @@ void MultiObjectTracker::CreateTrack(const cv::Rect &bb,
                                      const cv::Mat &diff_frame,
                                      const float flow)
 {
+  (void) flow;
   LOG(INFO) << "[MOT] Creating track " << next_uid_ << " for " << bb;
 
   {
@@ -403,7 +404,24 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
   TICK("MOT_Tracking");
 }
 
-void MultiObjectTracker::DrawTracks(cv::Mat &frame)
+std::size_t MultiObjectTracker::CopyAllTracks(std::vector<Track> &tracks_vec)
+{
+  std::size_t i = 0;
+  {
+    std::unique_lock<std::mutex> lock(pwt_mutex_);
+
+    tracks_vec.resize(tracks_.size());
+    for (auto& tm: tracks_)
+    {
+      // TODO: Check default assignment operator of Track
+      tracks_vec[i] = tm.second;
+      i++;
+    }
+  }
+  return i;
+}
+
+void MultiObjectTracker::DrawTracks(cv::Mat &frame, const bool verbose)
 {
 
   cv::Mat ss_mat;
@@ -455,20 +473,19 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame)
                 CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
     cv::rectangle(frame, bb, track_color);
 
-    LOG(INFO) << "[MOT] Track uid: " << uid << " " << bb << " " << dom_freq
-                 << " SF " << skipped_frames;
-    if (motion_hist.size())
+    if (verbose)
     {
-      LOG(INFO) << "[MOT] Motion hist: " << cv::Mat(motion_hist, false).t();
-    }
-//    if (flow_hist.size())
-//    {
-//      LOG(INFO) << "Flow hist: " << cv::Mat(flow_hist, false).t();
-//    }
+      LOG(INFO) << "[MOT] Track uid: " << uid << " " << bb << " " << dom_freq
+                   << " SF " << skipped_frames;
+      if (motion_hist.size())
+      {
+        LOG(INFO) << "[MOT] Motion hist: " << cv::Mat(motion_hist, false).t();
+      }
 
-    if (avg_spectrum.size())
-    {
-      LOG(INFO) << "[MOT] Avg Spec: " << cv::Mat(avg_spectrum, false).t();
+      if (avg_spectrum.size())
+      {
+        LOG(INFO) << "[MOT] Avg Spec: " << cv::Mat(avg_spectrum, false).t();
+      }
     }
 
     if (ss_mat.data)
