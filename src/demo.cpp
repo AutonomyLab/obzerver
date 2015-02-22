@@ -70,6 +70,8 @@ int main(int argc, char* argv[])
   float eval_decision_f_high;
   std::string eval_file;
 
+  std::uint32_t param_mot_method;
+  std::size_t param_mot_max_skipped_frames;
 
   // This will be merged with config file options
   po::options_description po_generic_desc("Generic Options");
@@ -112,6 +114,8 @@ int main(int argc, char* argv[])
       ("roi.min_flow_ppx", po::value<float>(&param_roi_min_flow_ppx)->default_value(0.1), "Min sum(|flow(roi)|/roi.size() to accept the ROI")
       ("roi.inflation_width", po::value<float>(&param_roi_inflation_width)->default_value(0.75), "How much to inflate the width of and extracted and accepted ROI (0.5: 0.25 increase for each side")
       ("roi.inflation_height", po::value<float>(&param_roi_inflation_height)->default_value(0.5), "How much to inflate the height of an extracted and accepted ROI (0.5: 0.25 increase for each side")
+      ("mot.method", po::value<std::uint32_t>(&param_mot_method)->default_value(0), "Periodicity Detection Method 0: SelfSimilarity 1: Average Diff Motion")
+      ("mot.max_skipped_frames", po::value<std::size_t>(&param_mot_max_skipped_frames)->default_value(30), "Maximum number of non-matching obzervation before deleting a track")
 //      ("", po::value<>()->default_value(), "")
       ;
 
@@ -148,6 +152,22 @@ int main(int argc, char* argv[])
 
   obz::log_config(argv[0], logfile);
 
+  /* Initial Logging */
+  LOG(INFO) << "Video Source: " << video_src;
+  LOG(INFO) << "Logfile: " << logfile;
+  if (!config_filename.empty())
+  {
+    LOG(INFO) << "Config file: " << config_filename;
+    LOG(INFO) << "---------------------------------";
+    std::ifstream config_file(config_filename);
+    std::string line;
+    while (std::getline(config_file, line))
+    {
+      LOG(INFO) << line;
+    }
+    LOG(INFO) << "---------------------------------";
+  }
+
   /* Variables */
   const bool use_webcam  = (video_src.compare("cam") == 0);
   unsigned long int frame_counter = 0;
@@ -181,28 +201,17 @@ int main(int argc, char* argv[])
                                     param_roi_inflation_width,  // Inflation: Width
                                     param_roi_inflation_height,  // Inflation: Height
                                     param_dbs_threads);   // Num Threads
-  obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);
 
-  LOG(INFO) << "Video Source: " << video_src;
-  LOG(INFO) << "Feature Detector: " << feature_detector->name();
-  LOG(INFO) << "Config file: " << config_filename;
 
-//  if (!cascade_src.empty())
-//  {
-//    LOG(INFO) << "Cascade File: " << cascade_src;
-//    try
-//    {
-//      ccv_icf_ptr = new ccv::ICFCascadeClassifier(cascade_src);
-//    }
-//    catch (const std::exception& e)
-//    {
-//      LOG(ERROR) << "Initializing cascade classifier failed: " << e.what();
-//      ccv_icf_ptr = 0;
-//    }
-//  }
+  obz::MultiObjectTracker multi_object_tracker(
+        (param_mot_method == 0) ?
+          obz::PERIODICITY_SELFSIMILARITY:
+          obz::PERIODICITY_AVERAGEMOTION,
+        param_hist_len,
+        param_fps,
+        param_mot_max_skipped_frames);
 
-//  obz::PFObjectTracker object_tracker(param_num_particles, param_hist_len, fps, ccv_icf_ptr);
-  obz::MultiObjectTracker multi_object_tracker(120, param_fps, 60);
+  obz::util::trackbar_data_t trackbar_data(&capture, &frame_counter);  
 
   int opengl_flags = 0;
   if (display)

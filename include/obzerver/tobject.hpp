@@ -24,7 +24,6 @@ public:
   TObject(const std::size_t hist_len, const float fps);
   void Reset();
 
-  // calc_self_similarity triggers the expensive SS calculation
   void Update(const object_t& obj,
               const cv::Mat& frame,
               const cv::Mat& diff_image,

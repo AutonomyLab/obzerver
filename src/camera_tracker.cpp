@@ -108,7 +108,8 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
                         est_homography_transform,
                         frame_gray_hist.latest().size(),
                         cv::INTER_LINEAR,
-                        cv::BORDER_TRANSPARENT
+//                        cv::BORDER_TRANSPARENT
+                        cv::BORDER_REPLICATE
                         );
 
     if (frame_rgb.cols > 0 && frame_rgb.rows > 0) {
@@ -117,7 +118,8 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
                           est_homography_transform,
                           frame_gray_hist.latest().size(),
                           cv::INTER_LINEAR,
-                          cv::BORDER_TRANSPARENT
+//                          cv::BORDER_TRANSPARENT
+                          cv::BORDER_REPLICATE
                           );
     }
 
@@ -150,7 +152,7 @@ void CameraTracker::UpdateDiff() {
   //cv::threshold(diff, diff, 1, 255, cv::THRESH_BINARY);
   //cv::threshold(diff, diff, 0, 0, cv::THRESH_TOZERO | cv::THRESH_OTSU);
 
-  cache_frame_diff = diff; return;
+//  cache_frame_diff = diff; return;
 
   diff_hist.push_front(diff);
   cache_frame_diff = cv::Mat::zeros(diff.size(), CV_16UC1);

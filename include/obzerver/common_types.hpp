@@ -60,5 +60,11 @@ typedef std::pair<std::int32_t, roi_t> roi_pair_t;
 typedef std::map<std::int32_t, roi_t> roi_map_t;
 typedef std::vector<cv::Rect> rect_vec_t;
 
+enum periodicity_method_t
+{
+  PERIODICITY_SELFSIMILARITY = 0,
+  PERIODICITY_AVERAGEMOTION
+};
+
 }  // namespace obz
 #endif

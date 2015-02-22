@@ -79,7 +79,7 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
                                            const unsigned int index,
                                            bool debug_mode = false)
 {
-#if 1
+#if 0
   CV_Assert(m1.size() == m2.size());
 //  cv::matchTemplate(m1, m2, buff, CV_TM_CCOEFF_NORMED);
 //  double max_val = 0.0, min_val = 0.0;
@@ -102,9 +102,9 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
   } else {
     //m1.copyTo(tmpl);
     tmpl = m1;
-//    cv::copyMakeBorder(m2, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
+    cv::copyMakeBorder(m2, img, tmpl.rows/2, tmpl.rows/2, tmpl.cols/2, tmpl.cols/2, cv::BORDER_WRAP);
 
-    cv::copyMakeBorder(m2, img, 10, 10, 10, 10, cv::BORDER_WRAP);
+//    cv::copyMakeBorder(m2, img, 10, 10, 10, 10, cv::BORDER_CONSTANT);
     orig_width = m2.cols;
     orig_height = m2.rows;
   }
@@ -113,6 +113,7 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
   cv::Point max_loc, min_loc;
   cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
 
+  return max_val;
 //  if (debug_mode) {
     // img coordinate system is the global coordinate system here
     // from 0,0 -> img.w + tmpl.w, img.h + tmpl.h
@@ -137,6 +138,8 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
 //    cv::rectangle(img, tmpl_overlap, cv::Scalar(0,0,0));
 //    cv::rectangle(tmpl, tmpl_roi, cv::Scalar(0,0,0));
     CV_Assert(img_cropped.size() == tmpl_cropped.size());
+      cv::matchTemplate(img, tmpl, buff, CV_TM_CCOEFF);
+      cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
 //    std::stringstream ss;
 //    ss << std::setw(5) << std::setfill('0') << "/tmp/" << index << "_0m1.bmp";
 //    cv::imwrite(ss.str(), m1);
@@ -163,8 +166,7 @@ float SelfSimilarity::CalcFramesSimilarity(const cv::Mat& m1,
 
 //  }
 #endif
-//  cv::matchTemplate(img, tmpl, buff, CV_TM_CCOEFF);
-//  cv::minMaxLoc(buff, &min_val, &max_val, &min_loc, &max_loc);
+
   return max_val;// / static_cast<float>(m1.rows * m1.cols);
 }
 
