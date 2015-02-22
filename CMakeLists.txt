@@ -54,13 +54,13 @@ set(obzerver_HEADERS
 
 include_directories(${obzerver_SOURCE_DIR}/include)
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 2.4 REQUIRED)
 if(OpenCV_FOUND)
     include_directories(${OpenCV_INCLUDE_DIRS})
     set(LIBS ${LIBS} ${OpenCV_LIBS})
     message(STATUS "OpenCV include dir: ${OpenCV_INCLUDE_DIRS}")
     message(STATUS "OpenCV CXXFLAGS: ${OpenCV_CXXFLAGS_OTHER}")
-    #message(STATUS ${LIBS})
+    message(STATUS  ${OpenCV_LIBS})
 endif(OpenCV_FOUND)
 
 ## glog debian package is available only on Ubuntu Trusy+
