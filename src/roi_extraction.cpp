@@ -56,7 +56,6 @@ ROIExtraction::~ROIExtraction()
 bool ROIExtraction::Update(
     const obz::pts_vec_t& curr_tracked_features,
     const obz::pts_vec_t& prev_tracked_features,
-    const cv::Mat& curr_outlier_features,
     const cv::Mat& diff_frame)
 {
   CV_Assert(curr_tracked_features.size() == prev_tracked_features.size());
@@ -69,6 +68,8 @@ bool ROIExtraction::Update(
     dbs_data_(i, 0) = -1.0 + ((2.0 * p.x) / diff_frame.cols);
     dbs_data_(i, 1) = -1.0 + ((2.0 * p.y) / diff_frame.rows);
   }
+
+  LOG(INFO) << "[ROI] Number of points to cluser: " << curr_tracked_features.size();
 
   TICK("RO_Features_to_Mat");
   dbs_engine_.init(dbs_eps_, dbs_min_elements_, dbs_num_threads_);
@@ -137,11 +138,12 @@ bool ROIExtraction::Update(
         static_cast<float>(roi.curr_pts.size());
 
 
-    LOG(INFO) << "*** ROI: "
+    LOG(INFO) << "[ROI] "
               << roi.avg_diff_motion_per_pixel
               << " "
               << roi.avg_optflow_per_feature
-              << " " << r;
+              << " "
+              << r;
 
     roi.bb = r;
 

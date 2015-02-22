@@ -276,7 +276,6 @@ int main(int argc, char* argv[])
       } else {
         roi_extraction.Update(camera_tracker.GetTrackedFeaturesCurr(),
                               camera_tracker.GetTrackedFeaturesPrev(),
-                              camera_tracker.GetHomographyOutliers(),
                               camera_tracker.GetLatestDiff());
         obz::rect_vec_t rois;
         std::vector<float> flows;

@@ -49,7 +49,6 @@ public:
 
   bool Update(const obz::pts_vec_t& curr_tracked_features,
               const obz::pts_vec_t& prev_tracked_features,
-              const cv::Mat& curr_outlier_features,
               const cv::Mat& diff_frame);
 
   // This function appends data to bb_vec
