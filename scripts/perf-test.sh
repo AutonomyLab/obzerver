@@ -13,9 +13,9 @@ cd $TMP_DIR
 
 echo "Installing dependencies ..."
 
-#sudo apt-get update -qq
+sudo apt-get update -qq
 # Except for glog, all other are ccv deps (not all required though)
-#sudo apt-get install -qy libgoogle-glog-dev libgsl0-dev
+sudo apt-get install -qy libgoogle-glog-dev libgsl0-dev
 #sudo apt-get install -qy libgoogle-glog-dev clang libjpeg-dev libpng-dev libdispatch-dev libgsl0-dev liblas-dev libfftw3-dev liblinear-dev libavcodec-dev libavformat-dev libswscale-dev
 
 echo "Downloading samples ..."
