@@ -38,6 +38,9 @@ int main(int argc, char* argv[])
 
   bool display;
   bool clear;
+  bool viz_features;
+  bool viz_rois;
+  bool viz_tracks;
   bool pause;
   bool loop;
   std::size_t start_frame;
@@ -75,6 +78,9 @@ int main(int argc, char* argv[])
       ("video,v", po::value<std::string>(&video_src), "Video file")
       ("config,c", po::value<std::string>(&config_filename)->default_value(""), "Configuration File (INI)")
       ("display,d", po::bool_switch(&display)->default_value(false), "Show visualization")
+      ("viz.features", po::bool_switch(&viz_features)->default_value(false), "Visualize Features")
+      ("viz.rois", po::bool_switch(&viz_rois)->default_value(false), "Visualize ROIS")
+      ("viz.tracks", po::bool_switch(&viz_tracks)->default_value(false), "Visualize Tracks")
       ("clear,cl", po::bool_switch(&clear)->default_value(false), "Clear Terminal")
       ("pause,p", po::bool_switch(&pause)->default_value(false), "Start in pause mode")
       ("logfile,l", po::value<std::string>(&logfile)->default_value(""), "specify log file (empty: log to stderr)")
@@ -253,8 +259,8 @@ int main(int argc, char* argv[])
 //      cv::equalizeHist(frame_gray, frame_gray);
       ticker.tick("ML_Frame_2_Gray");
       bool ct_success = camera_tracker.Update(frame_gray, frame);
-      cv::Point2d center;
-      double _w=0.0, _h=0.0, _f=-1.0;
+//      cv::Point2d center;
+//      double _w=0.0, _h=0.0, _f=-1.0;
       if (!ct_success) {
         LOG(WARNING) << "Camera Tracker Failed";
         // TODO
@@ -271,13 +277,6 @@ int main(int argc, char* argv[])
                                     camera_tracker.GetStablizedGray(),
                                     camera_tracker.GetLatestDiff(),
                                     camera_tracker.GetLatestCameraTransform().inv());
-
-//        object_tracker.Update2(camera_tracker.GetStablizedGray(), // TODO
-//                               camera_tracker.GetLatestDiff(),
-//                               //                              camera_tracker.GetLatestSOF(),
-//                               camera_tracker.GetLatestCameraTransform(),
-//                               camera_tracker.GetStablizedRGB());
-
 
 //        LOG(INFO) << "Tracking status: " << object_tracker.GetStatus();
 //        if (object_tracker.IsTracking()) {
@@ -297,59 +296,38 @@ int main(int argc, char* argv[])
 //          }
 //        }
 
-        //        if (object_tracker.GetStatus() != TRACKING_STATUS_TRACKING) {
-        //          if (!self_similariy.IsEmpty()) self_similariy.Reset();
-        //        } else {
-        //          self_similariy.Update(camera_tracker.GetStablized()(object_tracker.GetBoundingBox()).clone());
-        //          if (self_similariy.IsFull()) {
-        //            periodicity.Update(self_similariy.GetSimMatrix());
-        //            LOG(INFO) << "Dominant Frequency: " << periodicity.GetDominantFrequency();
-        //          }
-        //        }
-        //        center.x = sampler.Integrate(integrand_mean_x, NULL);
-        //        center.y = sampler.Integrate(integrand_mean_y, NULL);
-        //        _w = sqrt(sampler.Integrate(integrand_var_x, (void*) &(center.x)));
-        //        _h = sqrt(sampler.Integrate(integrand_var_y, (void*) &(center.y)));
-        //        LOG(INFO) << center << " : " << _w<< " - " <<  _h;
       }
 
       if (display) {
 
         cv::Mat diff_frame = camera_tracker.GetLatestDiff();
         diff_frame.convertTo(diff_frame, CV_8UC1, 5.0);
-//        cv::GaussianBlur(diff_frame, diff_frame, cv::Size(21,21), 20);
-        //        cv::Mat diff_frame = camera_tracker.GetLatestSOF();
-        //        cv::Mat diff_frame;
-        //        if (object_tracker.IsTracking()) {
-        //          diff_frame = object_tracker.GetObject().GetSelfSimilarity().GetSimMatrixRendered();
-        //          cv::imwrite("data/sim.bmp", diff_frame);
-        //        }
         cv::Mat debug_frame = camera_tracker.GetStablizedGray();
+        cv::cvtColor(debug_frame, debug_frame, CV_GRAY2BGR);
 
-        multi_object_tracker.DrawTracks(frame);
-//        object_tracker.DrawParticles(debug_frame);
+        if (viz_tracks) multi_object_tracker.DrawTracks(frame);
 
-//        if (camera_tracker.GetTrackedFeaturesCurr().size()) {
-//          obz::util::DrawFeaturePointsTrajectory(frame,
-//                                      camera_tracker.GetHomographyOutliers(),
-//                                      camera_tracker.GetTrackedFeaturesPrev(),
-//                                      camera_tracker.GetTrackedFeaturesCurr(),
-//                                      2,
-//                                      CV_RGB(0,0,255), CV_RGB(255, 0, 0), CV_RGB(255, 0, 0));
-//        }
+        if (viz_features && camera_tracker.GetTrackedFeaturesCurr().size()) {
+          obz::util::DrawFeaturePointsTrajectory(debug_frame,
+                                      camera_tracker.GetHomographyOutliers(),
+                                      camera_tracker.GetTrackedFeaturesPrev(),
+                                      camera_tracker.GetTrackedFeaturesCurr(),
+                                      2,
+                                      CV_RGB(0,0,255), CV_RGB(255, 0, 0), CV_RGB(255, 0, 0));
+        }
 
-        roi_extraction.DrawROIs(frame, false);
+        if (viz_rois) roi_extraction.DrawROIs(debug_frame, true);
 
-        cv::rectangle(diff_frame, cv::Rect(center.x - _w/2, center.y-_h/2, _w, _h), CV_RGB(255, 255, 255));
+//        cv::rectangle(diff_frame, cv::Rect(center.x - _w/2, center.y-_h/2, _w, _h), CV_RGB(255, 255, 255));
 
-        std::stringstream ss;
-        ss << std::setprecision(5) << "Periodicity: " << _f;
-        cv::putText(frame, ss.str(), cv::Point(40,40), 1, CV_FONT_HERSHEY_PLAIN, cv::Scalar(255, 0, 0));
-        //cv::circle(diff_frame, center, 10, CV_RGB(255, 255, 255));
+//        std::stringstream ss;
+//        ss << std::setprecision(5) << "Periodicity: " << _f;
+//        cv::putText(frame, ss.str(), cv::Point(40,40), 1, CV_FONT_HERSHEY_PLAIN, cv::Scalar(255, 0, 0));
+//        //cv::circle(diff_frame, center, 10, CV_RGB(255, 255, 255));
         if (frame.data) cv::imshow("Original", frame);
         if (diff_frame.data) cv::imshow("DiffStab", diff_frame);
         if (debug_frame.data) cv::imshow("Debug", debug_frame);
-        cv::waitKey(10);
+        cv::waitKey(5);
         ticker.tick("ML_Visualization");
       }
       LOG(INFO) << "Timing info" << std::endl << ticker.getstr(clear);
