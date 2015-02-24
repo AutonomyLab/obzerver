@@ -13,6 +13,8 @@ set(WITH_TESTS 0 CACHE BOOL "Build Tests (Requires Google Testing Framework)")
 # This requires downloading and compiling two external deps
 set(WITH_PF_CCV_TRACKER 0 CACHE BOOL "Build Particle Filter and Object Detection Based Single Object Tracker")
 
+set(EXTERNAL_DEVEL_SPACE "${CMAKE_CURRENT_BINARY_DIR}" CACHE STR "")
+
 set(obzerver_SOURCES
     src/utility.cpp
     src/benchmarker.cpp
@@ -86,9 +88,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_OPT_FLAGS} ${CMAKE_CXX_FLAGS} ${OpenCV_CXXFLAGS_OTH
 ## Build and Configure External Dependencies (Modified)
 
 include(ExternalProject)
-set(DEVEL_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
-include_directories(${DEVEL_INSTALL_DIR}/include)
-message(STATUS "Devel install directory for external deps: ${DEVEL_INSTALL_DIR}")
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
+message(STATUS "Devel install directory for external deps: ${CMAKE_CURRENT_BINARY_DIR}")
 
 if(WITH_PF_CCV_TRACKER)
   message(STATUS "Building Particle Filter based Single Object Tracker (w/ ccv and smctc)")
@@ -113,17 +115,17 @@ if(WITH_PF_CCV_TRACKER)
     CMAKE_ARGS
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-      -DCMAKE_INSTALL_PREFIX=${DEVEL_INSTALL_DIR}
+      -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 0
   )
-  set(LIBS ${LIBS} "${DEVEL_INSTALL_DIR}/lib/libsmctc.so")
+  set(LIBS ${LIBS} "${CMAKE_CURRENT_BINARY_DIR}/lib/libsmctc.so")
 
   # libccv's build system is convoluted
   ExternalProject_Add(libccv_project
     URL https://github.com/mani-monaj/ccv-lean/archive/stable.zip
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}
-    CONFIGURE_COMMAND cd lib && ./configure --with-cuda=no --prefix=${DEVEL_INSTALL_DIR}
+    CONFIGURE_COMMAND cd lib && ./configure --with-cuda=no --prefix=${CMAKE_CURRENT_BINARY_DIR}
     BUILD_COMMAND cd lib && make
     INSTALL_COMMAND ""
     BUILD_IN_SOURCE 1
@@ -140,18 +142,17 @@ endif(WITH_PF_CCV_TRACKER)
 ExternalProject_Add(libdbscan_project
   GIT_REPOSITORY https://github.com/mani-monaj/DBSCAN.git
   GIT_TAG master
-  PREFIX ${CMAKE_CURRENT_BINARY_DIR}
   CMAKE_ARGS
     -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
-    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    -DCMAKE_INSTALL_PREFIX=${DEVEL_INSTALL_DIR}
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_PREFIX=${EXTERNAL_DEVEL_SPACE}
     -DBUILD_PYTHONLIB=OFF
     -DWITH_OPENMP=ON
   INSTALL_COMMAND make install
   BUILD_IN_SOURCE 0
 )
 
-set(LIBS ${LIBS} "${DEVEL_INSTALL_DIR}/lib/libdbscan.so")
+set(LIBS ${LIBS} "${CMAKE_CURRENT_BINARY_DIR}/lib/libdbscan.so")
 
 ## Debug
 
@@ -159,7 +160,7 @@ message(STATUS "Libs: ${LIBS}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 
 # Since libccv is a static library, wee need to compile obzerver as static as well
-add_library(obzerver STATIC ${obzerver_SOURCES} ${obzerver_HEADERS})
+add_library(obzerver SHARED ${obzerver_SOURCES} ${obzerver_HEADERS})
 target_link_libraries(obzerver ${LIBS})
 add_dependencies(obzerver libsmctc libccv_project libdbscan_project)
 
