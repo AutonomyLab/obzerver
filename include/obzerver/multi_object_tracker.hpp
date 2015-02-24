@@ -39,6 +39,7 @@ struct Track
 
   float dom_freq;
   std::vector<float> avg_spectrum;
+  float displacement; // between latest frames' coordinate system and last's
 
   Track(const std::uint32_t uid = Track::UNKNOWN):
     uid(uid), skipped_frames(0), life(0), dom_freq(-1.0) {}
@@ -106,6 +107,7 @@ private:
                    const cv::Mat& frame,
                    const cv::Mat& diff_frame,
                    const cv::Mat& camera_transform,
+                   const cv::Mat& camera_transform_hist,
                    const cv::Rect& bb = cv::Rect(0, 0, 0, 0),
                    const float flow = 0.0);
 
@@ -120,11 +122,15 @@ public:
 
   // camera_transform is 3x3 homogenous transform to go from
   // frame t-1's coordinate system to frame t
+
+  // camera_transofrm_hist is 3x3 homogoenous transform to go from
+  // frame t-hist_len-1's coordinate system to frame t
   void Update(const obz::rect_vec_t& detections,
               const std::vector<float> &flows,
               const cv::Mat& frame,
               const cv::Mat &diff_frame,
-              const cv::Mat& camera_transform);
+              const cv::Mat& camera_transform,
+              const cv::Mat& camera_transform_hist);
 
   std::size_t GetNumTracks() const {return tracks_.size();}
 

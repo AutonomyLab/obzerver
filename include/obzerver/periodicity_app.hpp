@@ -70,6 +70,7 @@ private:
   obz::rect_vec_t rois;
   std::vector<float> flows;
   std::vector<obz::Track> tracks;
+  std::map<std::size_t, std::size_t> periodic_uids_map;
 
 public:
   PeriodicityApp();
@@ -83,9 +84,11 @@ public:
             const std::string& eval_filename,
             po::variables_map& boots_po_vm);
 
-  bool Update(const cv::Mat& frame);
+  std::size_t Update(const cv::Mat& frame);
 
   bool Alive() const {return !(eval_mode_ && eval_done_); }
+
+  std::size_t GetPeriodicTracks(std::vector<Track> &per_tracks) const;
 
   const cv::Ptr<cv::FeatureDetector>& GetFDCstPtr() const {return feature_detector;}
   const cv::Ptr<obz::CameraTracker>& GetCTCstPtr() const {return camera_tracker;}

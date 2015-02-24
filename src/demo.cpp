@@ -5,17 +5,7 @@
 
 #include <boost/program_options.hpp>
 #include <glog/logging.h>
-#include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
-
-#include "obzerver/common_types.hpp"
-#include "obzerver/logger.hpp"
-#include "obzerver/utility.hpp"
-#include "obzerver/benchmarker.hpp"
-#include "obzerver/camera_tracker.hpp"
-//#include "obzerver/object_tracker.hpp"
-#include "obzerver/roi_extraction.hpp"
-#include "obzerver/multi_object_tracker.hpp"
 
 #include "obzerver/periodicity_app.hpp"
 

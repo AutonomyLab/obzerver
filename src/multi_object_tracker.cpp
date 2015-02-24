@@ -117,6 +117,7 @@ void MultiObjectTracker::UpdateTrack(
     const cv::Mat &frame,
     const cv::Mat &diff_frame,
     const cv::Mat &camera_transform,
+    const cv::Mat &camera_transform_hist,
     const cv::Rect &bb,
     const float flow)
 {
@@ -145,6 +146,17 @@ void MultiObjectTracker::UpdateTrack(
                                           diff_frame,
                                           flow,
                                           false);
+
+    // t(0)
+    const cv::Point2f p1 = util::RectCenter(
+          tracks_[track_uid].object_ptr->GetHist().front().bb);
+    // t(hist_size) , max(hist_size) = hist_len
+    // transform p2 from t(hist_size) to t0
+    const cv::Point2f p2 = util::TransformPoint(
+          util::RectCenter(tracks_[track_uid].object_ptr->GetHist().back().bb),
+          camera_transform_hist);
+
+    tracks_[track_uid].displacement = sqrt(util::Dist2(p1, p2));
 
     if (periodicity_method_ == obz::PERIODICITY_AVERAGEMOTION)
     {
@@ -179,7 +191,8 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
                                 const std::vector<float>& flows,
                                 const cv::Mat& frame,
                                 const cv::Mat& diff_frame,
-                                const cv::Mat& camera_transform)
+                                const cv::Mat& camera_transform,
+                                const cv::Mat& camera_transform_hist)
 {
   current_time_++;
 
@@ -208,7 +221,8 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
   {
     for (auto& track_pair: tracks_)
     {
-      UpdateTrack(track_pair.first, frame, diff_frame, camera_transform);
+      UpdateTrack(track_pair.first, frame, diff_frame,
+                  camera_transform, camera_transform_hist);
     }
     return;
   }
@@ -371,6 +385,7 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
                   frame,
                   diff_frame,
                   camera_transform,
+                  camera_transform_hist,
                   detections[candid_detections[d-1]],
                   flows[candid_detections[d-1]]);
 //      match(t, d-1) = 100;  // Matched and valid
@@ -391,7 +406,7 @@ void MultiObjectTracker::Update(const rect_vec_t& detections,
   for (std::size_t t = 0; t < lonely_tracks.size(); t++)
   {
     // Update w/o obz
-    UpdateTrack(lonely_tracks[t], frame, diff_frame, camera_transform);
+    UpdateTrack(lonely_tracks[t], frame, diff_frame, camera_transform, camera_transform_hist);
   }
 
   std::size_t num_deleted = 0;
@@ -428,6 +443,7 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame, const bool verbose)
   std::uint32_t uid;
   cv::Rect bb;
   float dom_freq;
+  float displacement;
   std::stringstream text;
   std::size_t skipped_frames;
   std::vector<float> avg_spectrum;
@@ -440,6 +456,7 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame, const bool verbose)
       uid = track_pair.second.uid;
       bb = track_pair.second.GetBB();
       dom_freq = track_pair.second.dom_freq;
+      displacement = track_pair.second.displacement;
       if (periodicity_method_ == obz::PERIODICITY_SELFSIMILARITY)
       {
         ss_mat = track_pair.second.self_similarity_rendered.clone();
@@ -465,7 +482,8 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame, const bool verbose)
 
     text.str("");
     text << "# " << uid
-         << " " << dom_freq;
+         << " f: " << dom_freq
+         << " d: " << displacement;
 //         << " " << bb;
 
     cv::putText(frame, text.str(),

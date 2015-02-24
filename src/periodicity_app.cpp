@@ -101,12 +101,13 @@ bool PeriodicityApp::Init(const std::string& config_filename,
   return true;
 }
 
-bool PeriodicityApp::Update(const cv::Mat &frame)
+std::size_t PeriodicityApp::Update(const cv::Mat &frame)
 {
   CV_Assert(inited_);
   cv::cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
   const bool ct_success = camera_tracker->Update(frame_gray, frame);
 
+  std::size_t num_tracks = 0;
   if (!ct_success) {
     LOG(WARNING) << "[PA] Camera Tracker Failed";
   } else {
@@ -123,18 +124,21 @@ bool PeriodicityApp::Update(const cv::Mat &frame)
                                 flows,
                                 camera_tracker->GetStablizedGray(),
                                 camera_tracker->GetLatestDiff(),
-                                camera_tracker->GetLatestCameraTransform().inv());
+                                camera_tracker->GetLatestCameraTransform().inv(),
+                                camera_tracker->GetFullLengthCameraTransform().inv());
 
-    const std::size_t num_tracks = multi_object_tracker->CopyAllTracks(tracks);
+    num_tracks = multi_object_tracker->CopyAllTracks(tracks);
 
     // uid -> index
-    std::map<std::size_t, std::size_t> periodic_uids_map;
+    periodic_uids_map.clear();
     for (std::size_t i = 0; i < num_tracks; i++)
     {
       const obz::Track& tr = tracks[i];
       LOG(INFO) << "[PA] uid: " << tr.uid
                 << " bb: " << tr.GetBB()
-                << " freq: " << tr.dom_freq;
+                << " freq: " << tr.dom_freq
+                << " disp: " << tr.displacement;
+
       if ((tr.dom_freq >= eval_decision_f_low) &&
           (tr.dom_freq < eval_decision_f_high))
       {
@@ -183,7 +187,20 @@ bool PeriodicityApp::Update(const cv::Mat &frame)
       eval_done_ = true;
     }
   }
-  return true;
+  return num_tracks;
 }
+
+std::size_t PeriodicityApp::GetPeriodicTracks(std::vector<Track> &per_tracks) const
+{
+  per_tracks.resize(periodic_uids_map.size());
+  std::size_t i = 0;
+  for (auto& uid_index: periodic_uids_map)
+  {
+    per_tracks[i] = tracks[uid_index.second];
+    i++;
+  }
+  return i;
+}
+
 }  // namespace app
 }  // namespace obz

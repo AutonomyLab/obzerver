@@ -84,6 +84,8 @@ public:
   // t->t-1
   const cv::Mat& GetLatestCameraTransform() const {return camera_transform_hist.latest(); }
 
+  // t->t-len-1
+  const cv::Mat& GetFullLengthCameraTransform() const {return camera_transform_hist_acc[0];}
 };
 
 }  // namespace obz
