@@ -170,7 +170,7 @@ bool ROIExtraction::Update(
 }
 
 
-void ROIExtraction::DrawROIs(cv::Mat &frame, const bool verbose)
+void ROIExtraction::DrawROIs(cv::Mat &frame, const bool verbose) const
 {
   for (auto& roi_pair: rois_map_)
   {

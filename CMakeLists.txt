@@ -25,6 +25,7 @@ set(obzerver_SOURCES
     src/hungarian.cpp
     src/kalman.cpp
     src/multi_object_tracker.cpp
+    src/periodicity_app.cpp
 )
 
 set(obzerver_HEADERS
@@ -42,6 +43,7 @@ set(obzerver_HEADERS
     include/obzerver/hungarian.hpp
     include/obzerver/kalman.hpp
     include/obzerver/multi_object_tracker.hpp
+    include/obzerver/periodicity_app.hpp
 )
 
 #if(USE_CUSTOM_OPENCV)

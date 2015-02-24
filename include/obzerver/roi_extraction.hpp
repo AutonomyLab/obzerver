@@ -1,5 +1,5 @@
 #ifndef ROI_EXTRACTION
-#define ROI_EXTRACTIOn
+#define ROI_EXTRACTION
 
 #include "obzerver/common_types.hpp"
 #include "dbscan/dbscan.h"
@@ -56,7 +56,7 @@ public:
 
   const obz::roi_map_t& GetROIsMap() const {return rois_map_;}
 
-  void DrawROIs(cv::Mat& frame, const bool verbose = true);
+  void DrawROIs(cv::Mat& frame, const bool verbose = true) const;
 };
 
 }  // namespace obz
