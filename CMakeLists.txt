@@ -89,7 +89,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_OPT_FLAGS} ${CMAKE_CXX_FLAGS} ${OpenCV_CXXFLAGS_OTH
 
 include(ExternalProject)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
+include_directories(${EXTERNAL_DEVEL_SPACE}/include)
 message(STATUS "Devel install directory for external deps: ${CMAKE_CURRENT_BINARY_DIR}")
 
 if(WITH_PF_CCV_TRACKER)
@@ -152,7 +152,7 @@ ExternalProject_Add(libdbscan_project
   BUILD_IN_SOURCE 0
 )
 
-set(LIBS ${LIBS} "${CMAKE_CURRENT_BINARY_DIR}/lib/libdbscan.so")
+set(LIBS ${LIBS} "${EXTERNAL_DEVEL_SPACE}/lib/libdbscan.so")
 
 ## Debug
 
