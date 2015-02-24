@@ -107,6 +107,9 @@ std::size_t PeriodicityApp::Update(const cv::Mat &frame)
   cv::cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
   const bool ct_success = camera_tracker->Update(frame_gray, frame);
 
+  // TODO: When camera tracker fails (even for one frame), all tracks
+  // are cleared. That is wrong.
+  tracks.clear();
   std::size_t num_tracks = 0;
   if (!ct_success) {
     LOG(WARNING) << "[PA] Camera Tracker Failed";
@@ -117,15 +120,14 @@ std::size_t PeriodicityApp::Update(const cv::Mat &frame)
 
     rois.clear();
     flows.clear();
-    tracks.clear();
 
     roi_extraction->GetValidBBs(rois, flows);
     multi_object_tracker->Update(rois,
-                                flows,
-                                camera_tracker->GetStablizedGray(),
-                                camera_tracker->GetLatestDiff(),
-                                camera_tracker->GetLatestCameraTransform().inv(),
-                                camera_tracker->GetFullLengthCameraTransform().inv());
+                                 flows,
+                                 camera_tracker->GetStablizedGray(),
+                                 camera_tracker->GetLatestDiff(),
+                                 camera_tracker->GetLatestCameraTransform().inv(),
+                                 camera_tracker->GetFullLengthCameraTransform().inv());
 
     num_tracks = multi_object_tracker->CopyAllTracks(tracks);
 
