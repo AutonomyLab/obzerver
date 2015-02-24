@@ -182,6 +182,7 @@ std::size_t PeriodicityApp::Update(const cv::Mat &frame)
       metadata_file << tr.uid << std::endl;
       metadata_file << tr.GetBB() << std::endl;
       metadata_file << tr.dom_freq << std::endl;
+      metadata_file << tr.displacement << std::endl;
       metadata_file << cv::Mat(tr.avg_spectrum, false).t() << std::endl;
       metadata_file.close();
       eval_done_ = true;
