@@ -21,8 +21,11 @@ def main():
                 if string.find(line, "(ms)") == -1:
                     continue
                 elements = string.split(line)
-                assert elements[2] == "(ms)"
+                #assert elements[2] == "(ms)"
+                if not elements[2] == "(ms)":
+                    continue
                 component = elements[0]
+                #print(line, elements)
                 exec_time = float(elements[1])
                 if not component in data:
                     data[component] = list()

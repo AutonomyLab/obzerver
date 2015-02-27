@@ -2,8 +2,10 @@
 set -e
 
 DEMO=/local_home/tmp/obzerver-build/demo
-CONFIG=/home/mani/Dev/obzerver/config/ucf_arg.ini
-DATA=/local_home/datasets/UCF_ARG/aerial_clips/waving
+#CONFIG=/home/mani/Dev/obzerver/config/ucf_arg.ini
+CONFIG=/home/mani/Dev/obzerver/config/kth.ini
+DATA=/local_home/datasets/KTH/handwaving
+#DATA=/local_home/datasets/UCF_ARG/aerial_clips/waving
 
 TMP_DIR=`mktemp -d`
 LOG_DIR=$TMP_DIR/logs
