@@ -1,13 +1,17 @@
 #!/bin/bash
 set -e
 
-DEMO=/local_home/tmp/obzerver-build/demo
+DEMO=/home/autolab/Dev/obzerver/build/demo
 #CONFIG=/home/mani/Dev/obzerver/config/ucf_arg.ini
-CONFIG=/home/mani/Dev/obzerver/config/kth.ini
-DATA=/local_home/datasets/KTH/handwaving
+#CONFIG=/home/autolab/Dev/obzerver/config/kth.ini
+CONFIG=$1
+DATA=$2
+#DATA=/home/autolab/datasets/KTH/walking
 #DATA=/local_home/datasets/UCF_ARG/aerial_clips/waving
 
-TMP_DIR=`mktemp -d`
+#TMP_DIR=`mktemp -d`
+#TMP_DIR="/home/autolab/tmp/kth/walking"
+TMP_DIR=$3
 LOG_DIR=$TMP_DIR/logs
 RES_DIR=$TMP_DIR/results
 
@@ -17,8 +21,8 @@ echo "Data folder: $DATA"
 echo "Log Folder: $LOG_DIR"
 echo "Result folder: $RES_DIR"
 
-mkdir $LOG_DIR
-mkdir $RES_DIR
+mkdir -p $LOG_DIR
+mkdir -p $RES_DIR
 
 cd $DATA
 
