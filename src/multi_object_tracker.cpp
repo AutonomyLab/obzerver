@@ -8,6 +8,7 @@
 #include <sstream>
 #include <memory>
 #include <exception>
+#include <iomanip>
 
 namespace obz
 {
@@ -477,19 +478,21 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame, const bool verbose)
 //        flow_hist[i++] = f;
 //      }
 
-    const cv::Scalar track_color =
-          cv::Scalar(255 * ((uid % 8) & 1), 255 * ((uid % 8) & 2), 255 * ((uid % 8) & 4));
+//    const cv::Scalar track_color =
+//          cv::Scalar(255 * ((uid % 8) & 1), 255 * ((uid % 8) & 2), 255 * ((uid % 8) & 4));
+      const cv::Scalar track_color = cv::Scalar(0, 0, 0);
 
     text.str("");
-    text << "# " << uid
-         << " f: " << dom_freq
-         << " d: " << displacement;
+    text << std::setprecision(2)
+         << "#" << uid
+         << " Fr " << dom_freq
+         << " Di " << displacement;
 //         << " " << bb;
 
     cv::putText(frame, text.str(),
                 cv::Point(bb.x, bb.y - 10),
                 CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
-    cv::rectangle(frame, bb, track_color);
+    cv::rectangle(frame, bb, track_color, 2);
 
     if (verbose)
     {

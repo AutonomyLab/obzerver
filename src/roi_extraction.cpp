@@ -186,20 +186,20 @@ void ROIExtraction::DrawROIs(cv::Mat &frame, const bool verbose) const
           (verbose ?
              cv::Scalar(255 * ((cid % 8) & 1), 255 * ((cid % 8) & 2), 255 * ((cid % 8) & 4)) : cv::Scalar(0, 0, 0))
         :
-          cv::Scalar(255, 255, 255);
+          cv::Scalar(0, 0, 0);
 
-    text << "# " << cid
-         << " MPP "  << roi_pair.second.avg_diff_motion_per_pixel
-         << " OFPF " << roi_pair.second.avg_optflow_per_feature;
+    text << "# " << cid;
+//         << " MPP "  << roi_pair.second.avg_diff_motion_per_pixel
+//         << " OFPF " << roi_pair.second.avg_optflow_per_feature;
 //            << " " << bb;
     if (true || verbose)
     {
-      cv::putText(frame, text.str(), cv::Point(bb.x, bb.br().y + 10), CV_FONT_HERSHEY_PLAIN, 1, cluster_color);
+      cv::putText(frame, text.str(), cv::Point(bb.x, bb.y - 10), CV_FONT_HERSHEY_PLAIN, 1, cluster_color);
     }
-    cv::rectangle(frame, bb, cluster_color);
+    cv::rectangle(frame, bb, cluster_color, 2);
     for (auto &p: curr_pts)
     {
-      cv::circle(frame, p, 2, cluster_color, -1);
+      cv::circle(frame, p, 3, cv::Scalar(0, 0, 100), -1);
     }
   }
 }
