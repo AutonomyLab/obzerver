@@ -22,7 +22,7 @@ set(obzerver_SOURCES
     src/self_similarity.cpp
     src/fft.cpp
     src/tobject.cpp
-    src/logger.cpp    
+    src/logger.cpp
     src/roi_extraction.cpp
     src/hungarian.cpp
     src/kalman.cpp
@@ -140,8 +140,9 @@ endif(WITH_PF_CCV_TRACKER)
 
 # dbscan
 ExternalProject_Add(libdbscan_project
-  GIT_REPOSITORY https://github.com/mani-monaj/DBSCAN.git
-  GIT_TAG master
+  #GIT_REPOSITORY https://github.com/mani-monaj/DBSCAN.git
+  #GIT_TAG master
+  URL ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/DBSCAN-38d47b8.zip
   CMAKE_ARGS
     -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_BUILD_TYPE=Release
