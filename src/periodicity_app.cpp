@@ -69,7 +69,7 @@ bool PeriodicityApp::Init(const std::string& config_filename,
   obz::log_config("papp", log_filename);
   inited_ = true;
 
-  feature_detector = new cv::FastFeatureDetector(param_ffd_threshold, true);
+  feature_detector = cv::FastFeatureDetector::create(param_ffd_threshold, true);
   camera_tracker = new obz::CameraTracker(
         param_hist_len,
         feature_detector,

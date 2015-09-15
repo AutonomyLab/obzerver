@@ -5,7 +5,7 @@
 
 #include <boost/program_options.hpp>
 #include <glog/logging.h>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/highgui.hpp>
 
 #include "obzerver/periodicity_app.hpp"
 

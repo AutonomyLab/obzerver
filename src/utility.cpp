@@ -63,21 +63,6 @@ void DrawOpticalFlowVectors(const cv::Mat& flow_x, const cv::Mat& flow_y, cv::Ma
         }
 }
 
-void DownloadGpuMatToVecFC2(const cv::gpu::GpuMat& d_mat, std::vector<cv::Point2f>& vec)
-{
-    vec.resize(d_mat.cols);
-    cv::Mat mat(1, d_mat.cols, CV_32FC2, (void*)&vec[0]);
-    d_mat.download(mat);
-}
-
-void DownloadGpuMatToVecUC1(const cv::gpu::GpuMat& d_mat, std::vector<uchar>& vec)
-{
-    vec.resize(d_mat.cols);
-    cv::Mat mat(1, d_mat.cols, CV_8UC1, (void*)&vec[0]);
-    d_mat.download(mat);
-}
-
-
 void DrawFeaturePoints(cv::Mat& frame, const std::vector<cv::Point2f>& points, const cv::Scalar& color, int rad) {
     for (unsigned int i = 0; i < points.size(); i++) {
         cv::circle(frame, points[i], rad, color, -1);
@@ -248,5 +233,20 @@ void DrawOpticalFlowScatter(const cv::Mat& u,
     }
 }
 
+#ifdef GPU_EXPERIMENTAL
+void DownloadGpuMatToVecFC2(const cv::gpu::GpuMat& d_mat, std::vector<cv::Point2f>& vec)
+{
+    vec.resize(d_mat.cols);
+    cv::Mat mat(1, d_mat.cols, CV_32FC2, (void*)&vec[0]);
+    d_mat.download(mat);
+}
+
+void DownloadGpuMatToVecUC1(const cv::gpu::GpuMat& d_mat, std::vector<uchar>& vec)
+{
+    vec.resize(d_mat.cols);
+    cv::Mat mat(1, d_mat.cols, CV_8UC1, (void*)&vec[0]);
+    d_mat.download(mat);
+}
+#endif
 }  // namespace util
 }  // namespace obz

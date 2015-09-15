@@ -3,7 +3,7 @@
 
 #include <obzerver/common_types.hpp>
 
-#include <opencv2/core/core.hpp>
+#include <opencv2/core.hpp>
 #include <opencv2/video/tracking.hpp>
 
 #include <cstdint>

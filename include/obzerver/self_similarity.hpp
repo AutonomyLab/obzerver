@@ -1,8 +1,8 @@
 #ifndef SELF_SIMILARITY_H
 #define SELF_SIMILARITY_H
 
-#include "opencv2/core/core.hpp"
-#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/core.hpp"
+#include "opencv2/features2d.hpp"
 #include "opencv2/video/background_segm.hpp"
 
 #include "obzerver/common_types.hpp"

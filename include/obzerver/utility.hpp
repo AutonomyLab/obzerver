@@ -3,10 +3,13 @@
 
 #include <vector>
 #include <string>
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/core/core.hpp"
-#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/core.hpp"
+#include "opencv2/highgui.hpp"
+
+#ifdef GPU_EXPERIMENTAL
 #include "opencv2/gpu/gpumat.hpp"
+#endif
 
 #include <iostream>
 
@@ -133,9 +136,6 @@ std::string GetCvMatTypeStr(const int type);
 
 void DumpCvMatInfo(const cv::Mat& m);
 
-void DownloadGpuMatToVecFC2(const cv::gpu::GpuMat& d_mat, std::vector<cv::Point2f>& vec);
-void DownloadGpuMatToVecUC1(const cv::gpu::GpuMat& d_mat, std::vector<uchar>& vec);
-
 // Inflate a Rect wrt to its center
 // iw = 0.2 (10% increase for each side)
 inline cv::Rect InflateRect(const cv::Rect& r,
@@ -156,6 +156,10 @@ T Dist2(const cv::Point_<T> p1, const cv::Point_<T> p2)
   return static_cast<T>( ((p1.x - p2.x) * (p1.x - p2.x)) +  ((p1.y - p2.y) * (p1.y - p2.y)) );
 }
 
+#ifdef GPU_EXPERIMENTAL
+void DownloadGpuMatToVecFC2(const cv::gpu::GpuMat& d_mat, std::vector<cv::Point2f>& vec);
+void DownloadGpuMatToVecUC1(const cv::gpu::GpuMat& d_mat, std::vector<uchar>& vec);
+#endif
 }  // namespace util
 }  // namespace obz
 #endif

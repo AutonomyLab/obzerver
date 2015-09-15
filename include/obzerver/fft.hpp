@@ -1,7 +1,7 @@
 #ifndef FFT_HPP
 #define FFT_HPP
 
-#include "opencv2/core/core.hpp"
+#include "opencv2/core.hpp"
 
 namespace obz
 {

@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-VERSION=2.4.10.1
+VERSION=3.0.0
 
 sudo apt-get update -q
 sudo apt-get upgrade -y
-sudo apt-get install -y build-essential libgtk2.0-dev libjpeg-dev libtiff4-dev libjasper-dev libopenexr-dev cmake python-dev python-numpy python-tk libtbb-dev libeigen3-dev yasm libfaac-dev libopencore-amrnb-dev libopencore-amrwb-dev libtheora-dev libvorbis-dev libxvidcore-dev libx264-dev libv4l-dev libdc1394-22-dev libavcodec-dev libavformat-dev libswscale-dev
+sudo apt-get install -y build-essential libgtk2.0-dev pkg-config libjpeg-dev libtiff4-dev libjasper-dev libopenexr-dev cmake python-dev python-numpy python-tk libtbb-dev libeigen3-dev yasm libfaac-dev libopencore-amrnb-dev libopencore-amrwb-dev libtheora-dev libvorbis-dev libxvidcore-dev libx264-dev libv4l-dev libdc1394-22-dev libavcodec-dev libavformat-dev libswscale-dev
 
 wget -nc https://github.com/Itseez/opencv/archive/$VERSION.tar.gz
 tar xfzv $VERSION.tar.gz
