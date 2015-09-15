@@ -4,7 +4,7 @@
 #include <boost/program_options.hpp>
 #include <glog/logging.h>
 
-#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/features2d.hpp>
 
 #include "obzerver/common_types.hpp"
 #include "obzerver/logger.hpp"

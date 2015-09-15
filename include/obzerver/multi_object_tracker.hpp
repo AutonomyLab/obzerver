@@ -6,7 +6,7 @@
 #include "obzerver/tobject.hpp"
 #include "obzerver/hungarian.hpp"
 
-#include <opencv2/core/core.hpp>
+#include <opencv2/core.hpp>
 
 #include <map>
 // C++11

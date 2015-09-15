@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-OPENCV_DIR=/local_home/opencv/opencv-2.4.10.1/install
+OPENCV_DIR=/local_home/opencv/opencv-3.0.0/install
 #OPENCV_DIR=/home/autolab/Dev/opencv/opencv-2.4.10.1/install
 
 TMP_DIR=`mktemp -d`
@@ -23,7 +23,7 @@ wget --quiet -nc http://autolab.cmpt.sfu.ca/files/waving_sample_1.tar.gz
 tar xfz waving_sample_1.tar.gz
 
 echo "Cloning obzerver ..."
-git clone --quiet --recursive https://bitbucket.org/AutonomyLab/obzerver.git
+git clone --quiet --recursive -b opencv-3.0 https://bitbucket.org/AutonomyLab/obzerver.git
 cd obzerver
 mkdir build
 cd build

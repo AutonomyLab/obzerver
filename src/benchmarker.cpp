@@ -3,7 +3,7 @@
 #include <iomanip>
 
 #include "obzerver/benchmarker.hpp"
-#include "opencv2/core/core.hpp"
+#include "opencv2/core.hpp"
 
 StepBenchmarker::StepBenchmarker(): last_tick(cv::getTickCount()) {
     reset();

@@ -1,7 +1,7 @@
 #include "obzerver/kalman.hpp"
 #include "obzerver/utility.hpp"
 
-#include "opencv2/core/core.hpp"
+#include "opencv2/core.hpp"
 #include "glog/logging.h"
 
 #include <vector>
@@ -16,19 +16,19 @@ ExKalmanFilter::ExKalmanFilter(const cv::Rect &r):
   last_update_time_(0)
 {
 
-  kf_.transitionMatrix = *(cv::Mat_<float>(6,6) <<
-                           1.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-                           0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
-                           0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-                           0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+  kf_.transitionMatrix = (cv::Mat_<float>(6,6) <<
+                          1.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+                          0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
+                          0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+                          0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                          0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+                          0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+
+  kf_.measurementMatrix = (cv::Mat_<float>(4, 6) <<
+                           1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
                            0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
                            0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
-
-  kf_.measurementMatrix = *(cv::Mat_<float>(4, 6) <<
-                            1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                            0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-                            0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-                            0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
   Init(r);
 }
 

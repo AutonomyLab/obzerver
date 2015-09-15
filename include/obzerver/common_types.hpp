@@ -2,7 +2,7 @@
 #define COMMON_TYPES_HPP
 
 #include "obzerver/circular_buffer.hpp"
-#include <opencv2/core/core.hpp>
+#include <opencv2/core.hpp>
 
 #include <cstdint>
 #include <vector>
