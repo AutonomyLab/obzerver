@@ -110,13 +110,14 @@ TEST_F(CBTest, LatestPrev) {
 TEST(Utility, RectClamp) {
   cv::Rect b(0, 0, 20, 10);
 
-  ASSERT_EQ(b, ClampRect(b,b));
-  ASSERT_EQ(b, ClampRect(b, cv::Rect(0,0,100,100)));
-  ASSERT_EQ(b, ClampRect(b, cv::Rect(-100,-100,200,200)));
-  ASSERT_EQ(cv::Rect(0,0,5,5), ClampRect(cv::Rect(-5,-5,10,10), b));
-  ASSERT_EQ(cv::Rect(100,100,0,0), ClampRect(b, cv::Rect(100,100,100,100)));
-  ASSERT_EQ(cv::Rect(b.x + b.width,b.y + b.height,0,0), ClampRect(cv::Rect(100,100,100,100), b));
-  ASSERT_EQ(cv::Rect(5, 5, 15, 5), ClampRect(cv::Rect(5,5,100,100), b));
-  ASSERT_EQ(cv::Rect(5, 5, 1, 5), ClampRect(cv::Rect(5,5,1,100), b));
-  ASSERT_EQ(cv::Rect(5, 5, 15, 1), ClampRect(cv::Rect(5,5,100,1), b));
+  ASSERT_EQ(b, obz::util::ClampRect(b,b));
+  ASSERT_EQ(b, obz::util::ClampRect(b, cv::Rect(0,0,100,100)));
+  ASSERT_EQ(b, obz::util::ClampRect(b, cv::Rect(-100,-100,200,200)));
+  ASSERT_EQ(cv::Rect(0,0,5,5), obz::util::ClampRect(cv::Rect(-5,-5,10,10), b));
+  ASSERT_EQ(cv::Rect(100,100,0,0), obz::util::ClampRect(b, cv::Rect(100,100,100,100)));
+  ASSERT_EQ(cv::Rect(b.x + b.width,b.y + b.height,0,0),
+            obz::util::ClampRect(cv::Rect(100,100,100,100), b));
+  ASSERT_EQ(cv::Rect(5, 5, 15, 5), obz::util::ClampRect(cv::Rect(5,5,100,100), b));
+  ASSERT_EQ(cv::Rect(5, 5, 1, 5), obz::util::ClampRect(cv::Rect(5,5,1,100), b));
+  ASSERT_EQ(cv::Rect(5, 5, 15, 1), obz::util::ClampRect(cv::Rect(5,5,100,1), b));
 }
