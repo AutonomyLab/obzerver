@@ -1,0 +1,26 @@
+# Dependencies                                                              
+markdown:         redcarpet
+highlighter:      pygments
+
+# Permalinks
+#
+# Use of `relative_permalinks` ensures post links from the index work properly.
+permalink:           pretty
+relative_permalinks: true
+
+# Setup
+title:               Obzerver
+tagline:             'Supplementary software for paper "UAV, Do You See Me?", IROS 2015'
+description:         '<em>UAV, Do You See Me? Establishing Mutual Attention Between an Uninstrumented Human and an Outdoor UAV In Flight</em><br /> Mani Monajjemi, Jake Bruce, Seyed Abbas Sadat, Jens Wawerla and Richard T. Vaughan. <small>Proceedings of the IEEE International Conference on Intelligent Robots and Systems (IROS 2015), Hamburg, Germany 2015</small>'
+url:                 http://autonomylab.org/obzerver/
+baseurl:             ''
+paginate:            5
+
+# About/contact
+author:
+  name:              'Mani Monajjemi, Jake Bruce, Seyed Abbas Sadat, Jens Wawerla and Richard T. Vaughan'
+  url:               http://autonomylab.org
+  email:             ''
+
+# Custom vars
+version:             1.0.0

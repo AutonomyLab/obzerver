@@ -1,1 +1,146 @@
-OBZ
+---
+layout: default
+title: Home
+---
+
+<h2 id="intro">Introduction</h2>
+
+<div class="grid grid-pad">
+<div class="col-1-2">
+  <p>
+    <code>obzerver</code> is the core computer vision component of the pipeline described in the following paper for detecting stationary arm waving (periodic) gestures from an airborne <abbr title="Unmanned Aerial Vehicle">UAV</abbr> (quadrocopter).
+  </p>
+</div>
+<div class="col-1-2">
+  <div class="js-lazyYT" data-youtube-id="KXmgBDI_6PE" ></div>
+</div>
+</div>
+
+<p class="message">
+<strong>"UAV, Do You See Me? Establishing Mutual Attention Between an Uninstrumented Human and an Outdoor UAV In Flight"</strong><br />
+Mani Monajjemi and Jake Bruce and Seyed Abbas Sadat and Jens Wawerla and Richard T. Vaughan.<br />
+<em>Proceedings of the IEEE International Conference on Intelligent Robots and Systems (IROS'15), Hamburg, Germany 2015</em><br />
+<i class="fa-file-text-o"></i>&nbsp;<a href="#">BIB</a>&nbsp;
+<i class="fa fa-file-pdf-o"></i>&nbsp;<a href="http://autonomylab.org/doc/monajjemi_iros15.pdf">PDF</a>
+<i class="fa fa-download"></i>&nbsp;<a href="https://github.com/AutonomyLab/obzerver/archive/master.zip">Code</a>
+</p>
+
+<h2 id="compile">How to Compile</h2>
+
+<h3>Pre-requirements</h3>
+
+<ul>
+  <li>
+    Debian based 64 bit Linux (e.g. Ubuntu, Debian, Mint), Ubuntu 14.04 is the recommended platform
+  </li>
+  <li>
+    Following packages: <code>build-essentia, cmake, g++, libgoogle-glog-dev, libgsl0-dev, git, libgtest-dev, libboost-program-options-dev</code>
+  </li>
+</ul>
+
+{% highlight bash %}
+$ sudo apt-get install build-essential cmake g++ libgoogle-glog-dev libgsl0-dev git libgtest-dev libboost-program-options-dev
+{% endhighlight %}
+
+<h3>Clone the source repository</h3>
+
+{% highlight bash %}
+$ cd /path/to/dev # your preferred location
+$ git clone https://github.com/AutonomyLab/obzerver
+{% endhighlight %}
+
+<h3>Compile OpenCV from source</h3>
+
+Although it's possible to compile <code>obzerver</code> against pre-built <a href="#">OpenCV</a> library, it's recommended to build OpenCV from source with all optimizations enabled. To build OpenCV from source (and if you are using Ubuntu, Debian or Mint), you can use the provided build script (<code>scripts/build-opencv.sh</code>) as follows. The script downloads, compiles and installs OpenCV in the directory that it's called from.
+
+{% highlight bash %}
+$ mkdir thirdparty/opencv
+$ cd thirdparty/opencv
+$ source ../../scripts/build-opencv.sh
+{% endhighlight %}
+
+<h3>Compile libobzerver and demo application</h3>
+
+{% highlight bash %}
+$ cd /path/to/dev/obzerver
+$ mkdir build && cd build
+$ cmake .. -DCMAKE_PREFIX_PATH=$OPENCV_INSTALL_PREFIX -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_TESTS=1
+$ make
+$ make test # optional, very low coverage
+{% endhighlight %}
+
+<h2 id="usage">Usage</h2>
+
+<h3>libobzerver Classes</h3>
+
+TBA
+
+<h3>Demo Application</h3>
+
+The demo application (<code>build/demo</code>) is an app that demonstrated how to use components of <code>libobzerver</code> to detect stationary periodic motions
+ in a video stream. <em>PeriodicityApp Configurations</em> can also be set from an INI configuration file.
+
+{% highlight bash %}
+$ ./build/demo --help
+
+Generic Options:
+  -h [ --help ]                        Show help
+  -v [ --video ] arg                   Video file
+  --downsample arg (=1)                Downsample (resize) factor (0.5: half)
+  -c [ --config ] arg                  Configuration File (INI)
+  -d [ --display ]                     Show visualization
+  --viz.features                       Visualize Features
+  --viz.rois                           Visualize ROIS
+  --viz.tracks                         Visualize Tracks
+  -c [ --clear ]                       Clear Terminal
+  -p [ --pause ]                       Start in pause mode
+  -l [ --logfile ] arg                 specify log file (empty: log to stderr)
+  -k [ --skip ] arg (=0)               Starting frame
+  -e [ --eval.enabled ]                Evaluation (Experiment/Decistion) mode
+  --eval.file arg (=/tmp/obzerver.png) Image file to dump the decision bounding
+                                       box to
+  --loop                               loop video
+
+PeriodicityApp Configuration:
+  -h [ --history ] arg (=120)           Length of history (frames)
+  --fps arg (=30)                       frames per second
+  --eval.f_low arg (=0.899999976)       Decision min frequency
+  --eval.f_high arg (=3.0999999)        Decision max frequency
+  --eval.min_frames arg (=5)            Minimum number of consequtive positive 
+                                        hits before making the decision
+  --icf.cascade arg                     icf cascade file
+  --stablize.numfeatures arg (=300)     Number of features to track for 
+                                        stablization
+  --stablize.ffd_threshold arg (=30)    Fast Feature Detector threshold
+  --stablize.pylk_winsize arg (=30)     Size of search window size for pylk
+  --stablize.pylk_iters arg (=30)       Number of iterations for pylk
+  --stablize.pylk_eps arg (=0.01)       pylk eps criteria
+  --dbscan.eps arg (=0.040000000000000001)
+                                        DBScan Threshold (0,1) 
+  --dbscan.min_elements arg (=10)       in number of cluster members
+  --dbscan.threads arg (=2)             DBScan OpenMP Threads
+  --roi.min_motion_ppx arg (=0.00999999978)
+                                        Min sum(diff(roi))/roi.size() to accept
+                                        the ROI
+  --roi.min_motion_pft arg (=40)        Min diff value for a feature point to 
+                                        be considered for clustering
+  --roi.min_flow_ppx arg (=0.100000001) Min sum(|flow(roi)|/roi.size() to 
+                                        accept the ROI
+  --roi.inflation_width arg (=0.75)     How much to inflate the width of and 
+                                        extracted and accepted ROI (0.5: 0.25 
+                                        increase for each side
+  --roi.inflation_height arg (=0.5)     How much to inflate the height of an 
+                                        extracted and accepted ROI (0.5: 0.25 
+                                        increase for each side
+  --mot.method arg (=0)                 Periodicity Detection Method 0: 
+                                        SelfSimilarity 1: Average Diff Motion
+  --mot.max_skipped_frames arg (=30)    Maximum number of non-matching 
+                                        obzervation before deleting a track
+  --mot.max_matching_cost arg (=100)    Maximum tolerable eucledian distance 
+                                        when mathcing tracks and observations 
+                                        (in pixels)
+{% endhighlight %}
+
+<h3>Wrapper Script for Datasets</h3>
+
+TBA

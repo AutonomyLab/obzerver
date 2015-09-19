@@ -1,0 +1,17 @@
+<!-- JS -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script src="{{ site.baseurl }}public/js/lazyYT-min.js"></script> 
+    <script>
+        $( document ).ready(function() {            
+            // Pass some parameters
+            $('.js-lazyYT').lazyYT({
+              loading_text: 'Loading ...',
+              display_duration: true,
+              default_ratio: '16:9'
+            });
+        });
+    </script>
+
+    {% for js_name in page.extra_js %}
+    <script src="{{ site.baseurl }}public/js/{{ js_name }}"></script>
+    {% endfor %}
