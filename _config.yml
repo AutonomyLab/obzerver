@@ -12,8 +12,8 @@ relative_permalinks: true
 title:               Obzerver
 tagline:             'Supplementary software for paper "UAV, Do You See Me?", IROS 2015'
 description:         '<em>UAV, Do You See Me? Establishing Mutual Attention Between an Uninstrumented Human and an Outdoor UAV In Flight</em><br /> Mani Monajjemi, Jake Bruce, Seyed Abbas Sadat, Jens Wawerla and Richard T. Vaughan. <small>Proceedings of the IEEE International Conference on Intelligent Robots and Systems (IROS 2015), Hamburg, Germany 2015</small>'
-url:                 http://autonomylab.org/obzerver/
-baseurl:             http://autonomylab.org/obzerver/
+url:                 http://autonomylab.org
+baseurl:             /obzerver
 paginate:            5
 
 # About/contact
