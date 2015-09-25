@@ -478,9 +478,9 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame, const bool verbose)
 //        flow_hist[i++] = f;
 //      }
 
-//    const cv::Scalar track_color =
-//          cv::Scalar(255 * ((uid % 8) & 1), 255 * ((uid % 8) & 2), 255 * ((uid % 8) & 4));
-      const cv::Scalar track_color = cv::Scalar(0, 0, 0);
+    const cv::Scalar track_color =
+          cv::Scalar(255 * ((uid % 8) & 1), 255 * ((uid % 8) & 2), 255 * ((uid % 8) & 4));
+//      const cv::Scalar track_color = cv::Scalar(0, 0, 0);
 
     text.str("");
     text << std::setprecision(2)
@@ -490,7 +490,7 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame, const bool verbose)
 //         << " " << bb;
 
     cv::putText(frame, text.str(),
-                cv::Point(bb.x, bb.y - 10),
+                cv::Point(bb.x, bb.y + bb.height + 15),
                 CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
     cv::rectangle(frame, bb, track_color, 2);
 

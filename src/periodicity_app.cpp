@@ -141,6 +141,12 @@ std::size_t PeriodicityApp::Update(const cv::Mat &frame)
                 << " freq: " << tr.dom_freq
                 << " disp: " << tr.displacement;
 
+      if (tr.dom_freq > 0.0 && tr.avg_spectrum.size())
+      {
+        LOG(INFO) << "[PA] uid: " << tr.uid
+                  << " spec: " << cv::Mat(tr.avg_spectrum, false).t();
+      }
+
       if ((tr.dom_freq >= eval_decision_f_low) &&
           (tr.dom_freq < eval_decision_f_high))
       {

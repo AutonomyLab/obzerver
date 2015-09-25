@@ -189,11 +189,11 @@ int main(int argc, char* argv[])
         frame_src = papp.GetCTCstPtr()->GetStablizedRGB().clone();
         if (papp.GetCTCstPtr()->GetTrackedFeaturesCurr().size()) {
           obz::util::DrawFeaturePointsTrajectory(frame_src,
-                                      papp.GetCTCstPtr()->GetHomographyOutliers(),
+//                                      papp.GetCTCstPtr()->GetHomographyOutliers(),
                                       papp.GetCTCstPtr()->GetTrackedFeaturesPrev(),
                                       papp.GetCTCstPtr()->GetTrackedFeaturesCurr(),
                                       3,
-                                      CV_RGB(0,0,0), CV_RGB(0, 0, 0), CV_RGB(0, 0, 0));
+                                      CV_RGB(255,0,0), CV_RGB(0, 0, 255), CV_RGB(0, 0, 0));
         }
         ss.str("");
         ss << "./out/features-" << std::setw(6) << std::setfill('0') << frame_counter << ".png";
@@ -205,7 +205,11 @@ int main(int argc, char* argv[])
         cv::imwrite(ss.str(), diff_frame);
 
         frame_src = papp.GetCTCstPtr()->GetStablizedRGB().clone();
-        papp.GetRECstPtr()->DrawROIs(frame_src, false);
+        ss.str("");
+        ss << "./out/frame-stab-" << std::setw(6) << std::setfill('0') << frame_counter << ".png";
+        cv::imwrite(ss.str(), frame_src);
+
+        papp.GetRECstPtr()->DrawROIs(frame_src, true);
         ss.str("");
         ss << "./out/roi-" << std::setw(6) << std::setfill('0') << frame_counter << ".png";
         cv::imwrite(ss.str(), frame_src);
@@ -216,6 +220,18 @@ int main(int argc, char* argv[])
         ss << "./out/tracks-" << std::setw(6) << std::setfill('0') << frame_counter << ".png";
         cv::imwrite(ss.str(), frame_src);
 
+        std::vector<obz::Track> tracks;
+        papp.GetMOTPtr()->CopyAllTracks(tracks);
+        cv::Mat track_img;
+        for (std::vector<obz::Track>::const_iterator it = tracks.begin();
+             it != tracks.end(); it++)
+        {
+          ss.str("");
+          ss << "./out/track-" << std::setw(3) << std::setfill('0') << it->uid
+                << "-frame-" << std::setw(6) << std::setfill('0') << frame_counter << ".png";
+          track_img = frame_src(it->GetBB()).clone();
+          cv::imwrite(ss.str(), track_img);
+        }
         if (viz_rois) papp.GetRECstPtr()->DrawROIs(debug_frame, true);
         if (frame.data) cv::imshow("Original", frame);
         if (diff_frame.data) cv::imshow("DiffStab", diff_frame);
