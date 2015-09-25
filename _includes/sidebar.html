@@ -9,7 +9,7 @@
   </div>
 
   <nav class="sidebar-nav">
-    <a class="sidebar-nav-item{% if page.url == site.baseurl %} active{% endif %}" href="{{ site.baseurl }}/">Home</a>
+    <a class="sidebar-nav-item{% if page.url == site.baseurl %} active{% endif %}" href="{{ site.baseurl }}/"><i class="fa fa-home"></i> Home</a>
 
     {% comment %}
       The code below dynamically generates a sidebar nav of pages with
@@ -25,11 +25,22 @@
       {% endif %}
     {% endfor %}
 
-    <a class="sidebar-nav-item" href="{{ site.github.repo }}/archive/master.zip">Download</a>
-    <a class="sidebar-nav-item" href="#compile">Compilation</a>
-    <a class="sidebar-nav-item" href="#usage">Usage</a>
-    <a class="sidebar-nav-item" href="#credits">Credits</a>
-    <a class="sidebar-nav-item" href="{{ site.github.repo }}">GitHub project</a>
+    <a class="sidebar-nav-item" href="{{ site.github.repo }}/archive/master.zip">
+    <i class="fa fa-download"></i> Download
+    </a>
+    <a class="sidebar-nav-item" href="#compile">
+    <i class="fa fa-file"></i> Compilation
+    </a>
+    <a class="sidebar-nav-item" href="#usage">
+    <i class="fa fa-book"></i> Usage
+    </a>
+    <a class="sidebar-nav-item" href="#credits">
+    <i class="fa fa-user"></i> Credits
+    </a>
+    <a class="sidebar-nav-item" href="https://github.com/AutonomyLab/obzerver">
+    <i class="fa fa-github"></i> GitHub project</a>
+    <a class="sidebar-nav-item" href="http://autonomylab.org">
+    <i class="fa fa-external-link"></i> AutonomyLab</a>
   </nav>
 
   <div class="sidebar-item">
