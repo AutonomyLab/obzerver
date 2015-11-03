@@ -58,7 +58,7 @@ set(obzerver_HEADERS
 
 include_directories(${obzerver_SOURCE_DIR}/include)
 
-find_package(OpenCV 2.4 REQUIRED)
+find_package(OpenCV 3.0 REQUIRED)
 if(OpenCV_FOUND)
     include_directories(${OpenCV_INCLUDE_DIRS})
     set(LIBS ${LIBS} ${OpenCV_LIBS})
