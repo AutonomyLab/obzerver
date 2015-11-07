@@ -38,6 +38,7 @@ protected:
   cv::Mat cache_frame_stablized_gray;
   cv::Mat cache_frame_stablized_rgb;
   cv::Mat cache_frame_diff;
+  cv::Mat cache_frame_diff_acc;
   cv::Mat cache_sof_image;
 
   CircularBuffer<cv::Mat> frame_gray_hist; // Min size: 2

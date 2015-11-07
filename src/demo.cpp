@@ -164,6 +164,7 @@ int main(int argc, char* argv[])
       if (display) {
 
         cv::Mat diff_frame = papp.GetCTCstPtr()->GetLatestDiff();
+        // Amplify for visualization
         diff_frame.convertTo(diff_frame, CV_8UC1, 5.0);
         cv::Mat debug_frame = papp.GetCTCstPtr()->GetStablizedGray();
         cv::cvtColor(debug_frame, debug_frame, CV_GRAY2BGR);

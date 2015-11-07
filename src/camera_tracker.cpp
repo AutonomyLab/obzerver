@@ -82,7 +82,10 @@ bool CameraTracker::Update(const cv::Mat &frame_gray, const cv::Mat &frame_rgb) 
 //    tracked_features_prev.reserve(tracking_status.size());
 //    tracked_features_curr.reserve(tracking_status.size());
     for (size_t j = 0; j < tracking_status.size(); j++) {
-      if (tracking_status[j]) {
+      const cv::Point2f &pc = detected_features_curr[j];
+      // TODO: Use err values as well to filter out bad matches
+      if ((tracking_status[j]) && (pc.x >= 0) && (pc.y >= 0) &&
+          (pc.x < frame_gray.cols) && (pc.y < frame_gray.rows)) {
         tracked_features_prev.push_back(detected_features_prev[j]);
         tracked_features_curr.push_back(detected_features_curr[j]);
       }
@@ -155,7 +158,18 @@ void CameraTracker::UpdateDiff() {
 //  cache_frame_diff = diff; return;
 
   diff_hist.push_front(diff);
-  cache_frame_diff = cv::Mat::zeros(diff.size(), CV_16UC1);
+
+  // Smooth out the diff image by averaging diff_hist
+  if (!(cache_frame_diff_acc.size() == diff.size()))
+  {
+    // First time only
+    cache_frame_diff_acc = cv::Mat::zeros(diff.size(), CV_16UC1);
+  }
+  else
+  {
+    cache_frame_diff_acc.setTo(0);
+  }
+
   //cv::Mat trans_to_histlen = camera_transform_hist_acc.at(0).inv();
   //cv::Mat dummy;
   for (unsigned int i = 0; i < diff_hist.size(); i++) {
@@ -163,11 +177,12 @@ void CameraTracker::UpdateDiff() {
     //cv::Mat trans_to_current = camera_transform_hist_acc.at(i) * trans_to_histlen;
     //cv::warpPerspective(diff_hist.at(i), dummy, trans_to_current, diff_hist.at(i).size());
     //cv::add(cache_frame_diff, dummy, cache_frame_diff, cv::noArray(), 1);
-    cv::add(cache_frame_diff, diff_hist[i], cache_frame_diff, cv::noArray(), 1);
+    cv::add(cache_frame_diff_acc, diff_hist[i], cache_frame_diff_acc, cv::noArray(), 2);
     //cv::bitwise_and(cache_frame_diff, dummy, cache_frame_diff);
   }
 
-  cache_frame_diff = cache_frame_diff * (1.0 / diff_hist.size());
+  cache_frame_diff_acc = cache_frame_diff_acc * (1.0 / diff_hist.size());
+  cache_frame_diff_acc.convertTo(cache_frame_diff, CV_8UC1);
 }
 
 // TODO: Move all params
