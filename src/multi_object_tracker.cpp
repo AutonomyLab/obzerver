@@ -166,7 +166,7 @@ void MultiObjectTracker::UpdateTrack(
         std::vector<float> vec(track_motion_hist.begin(), track_motion_hist.end());
         tracks_[track_uid].per_ptr->Update(
               vec,
-              /*tracks_[track_uid].life != 0*/ false);
+              /*tracks_[track_uid].life != 0*/ false, true);
         tracks_[track_uid].life++;
         tracks_[track_uid].dom_freq = tracks_[track_uid].per_ptr->GetDominantFrequency(1);
         tracks_[track_uid].avg_spectrum = tracks_[track_uid].per_ptr->GetSpectrum();
