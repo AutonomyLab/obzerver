@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION=3.0.0
+VERSION=3.1.0
 
 sudo apt-get update -q
 sudo apt-get upgrade -y
