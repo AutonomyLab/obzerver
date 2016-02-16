@@ -32,7 +32,12 @@ void TObject::Update(const object_t &obj,
 //  LOG(INFO) << "[TObj] Updating with: " << obj.bb << " | Reset: " << reset;
   obj_hist.push_front(obj);
   sequence.push_front(frame(obj.bb).clone());
-  motion_hist.push_front(cv::sum(diff_image(obj.bb))[0] / static_cast<float>(obj.bb.area()));
+
+  const float num_pixels = static_cast<float>(obj.bb.area());
+  const float num_nonzero_pixels = static_cast<float>(cv::countNonZero(diff_image(obj.bb)));
+  LOG(INFO) << "[OBJ] BB num_pixels: " << num_pixels << " non-zero: " << num_nonzero_pixels;
+
+  motion_hist.push_front(cv::sum(diff_image(obj.bb))[0] / num_nonzero_pixels);
   optflow_hist.push_front(flow);
 
   // Only calculate the self similarity matrix when:

@@ -148,13 +148,15 @@ void CameraTracker::UpdateDiff() {
   cv::Scalar thres_stddev;
 
   cv::Mat diff;
+  cv::absdiff(cache_frame_stablized_gray, frame_gray_hist.prev(), diff);
 
   /* experimental */
-  cv::Mat s1, s2;
-  cv::GaussianBlur(cache_frame_stablized_gray, s1, cv::Size(9, 9), 5);
-  cv::GaussianBlur(frame_gray_hist.prev(), s2, cv::Size(9, 9), 5);
+//  cv::Mat s1, s2;
+//  cv::GaussianBlur(cache_frame_stablized_gray, s1, cv::Size(9, 9), 5);
+//  cv::GaussianBlur(frame_gray_hist.prev(), s2, cv::Size(9, 9), 5);
+//  cv::absdiff(s1, s2, diff);
 
-  cv::absdiff(s1, s2, diff);
+
   //cv::absdiff(frame_gray_hist.latest(), frame_gray_hist.prev(), diff);
   cv::meanStdDev(diff, thres_mean, thres_stddev);
   cv::threshold(diff, diff, thres_mean[0] + thres_stddev[0], 255, cv::THRESH_TOZERO);
