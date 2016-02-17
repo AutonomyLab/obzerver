@@ -42,7 +42,11 @@ PeriodicityApp::PeriodicityApp() :
 }
 
 PeriodicityApp::~PeriodicityApp()
-{}
+{
+  LOG(INFO) << "Distructor of PApp";
+  google::ShutdownGoogleLogging();
+  LOG(INFO) << "Graceful shutdown of PApp";
+}
 
 bool PeriodicityApp::Init(const std::string& config_filename,
                           const std::string& log_filename,
