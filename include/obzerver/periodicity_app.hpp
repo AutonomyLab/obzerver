@@ -47,6 +47,10 @@ private:
   float param_roi_min_flow_ppx;
   float param_roi_inflation_width;
   float param_roi_inflation_height;
+  std::uint32_t param_roi_min_height;
+  std::uint32_t param_roi_min_width;
+  std::uint32_t param_roi_max_height;
+  std::uint32_t param_roi_max_width;
   float eval_decision_f_low;
   float eval_decision_f_high;
   std::size_t eval_min_hit_frames;

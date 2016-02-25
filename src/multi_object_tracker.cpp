@@ -488,8 +488,8 @@ void MultiObjectTracker::DrawTracks(cv::Mat &frame, const bool verbose)
 
     cv::putText(frame, text.str(),
                 cv::Point(bb.x, bb.y - 10),
-                CV_FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 0));
-    cv::rectangle(frame, bb, track_color);
+                CV_FONT_HERSHEY_PLAIN, 1, CV_RGB(0, 0, 0));
+    cv::rectangle(frame, bb, track_color, 2);
 
     if (verbose)
     {

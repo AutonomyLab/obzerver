@@ -34,7 +34,7 @@ void TObject::Update(const object_t &obj,
   sequence.push_front(frame(obj.bb).clone());
 
   const float num_pixels = static_cast<float>(obj.bb.area());
-  const float num_nonzero_pixels = static_cast<float>(cv::countNonZero(diff_image(obj.bb)));
+  const float num_nonzero_pixels = static_cast<float>(cv::countNonZero(diff_image(obj.bb))) + 1.0;
   LOG(INFO) << "[OBJ] BB num_pixels: " << num_pixels << " non-zero: " << num_nonzero_pixels;
 
   motion_hist.push_front(cv::sum(diff_image(obj.bb))[0] / num_nonzero_pixels);

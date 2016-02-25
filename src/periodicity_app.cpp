@@ -32,6 +32,10 @@ PeriodicityApp::PeriodicityApp() :
       ("roi.min_motion_ppx", po::value<float>(&param_roi_min_motion_ppx)->default_value(0.01), "Min sum(diff(roi))/roi.size() to accept the ROI")
       ("roi.min_motion_pft", po::value<float>(&param_roi_min_motion_pft)->default_value(40), "Min diff value for a feature point to be considered for clustering")
       ("roi.min_flow_ppx", po::value<float>(&param_roi_min_flow_ppx)->default_value(0.1), "Min sum(|flow(roi)|/roi.size() to accept the ROI")
+      ("roi.min_height", po::value<std::uint32_t>(&param_roi_min_height)->default_value(10), "Minimum ROI height in px")
+      ("roi.min_width", po::value<std::uint32_t>(&param_roi_min_width)->default_value(5), "Minimum ROI width in px")
+      ("roi.max_height", po::value<std::uint32_t>(&param_roi_max_height)->default_value(200), "Maximum ROI height in px")
+      ("roi.max_width", po::value<std::uint32_t>(&param_roi_max_width)->default_value(100), "Maximum ROI width in px")
       ("roi.inflation_width", po::value<float>(&param_roi_inflation_width)->default_value(0.75), "How much to inflate the width of and extracted and accepted ROI (0.5: 0.25 increase for each side")
       ("roi.inflation_height", po::value<float>(&param_roi_inflation_height)->default_value(0.5), "How much to inflate the height of an extracted and accepted ROI (0.5: 0.25 increase for each side")
       ("mot.method", po::value<std::uint32_t>(&param_mot_method)->default_value(0), "Periodicity Detection Method 0: SelfSimilarity 1: Average Diff Motion")
@@ -52,15 +56,15 @@ bool PeriodicityApp::Init(const std::string& config_filename,
                           const std::string& log_filename,
                           const bool eval_mode,
                           const std::string& eval_filename,
-                          po::variables_map& boots_po_vm)
+                          po::variables_map& boost_po_vm)
 {
   if (!config_filename.empty())
   {
     std::ifstream config_file(config_filename);
     if (config_file)
     {
-      po::store(po::parse_config_file(config_file, po_config_options), boots_po_vm);
-      po::notify(boots_po_vm);
+      po::store(po::parse_config_file(config_file, po_config_options), boost_po_vm);
+      po::notify(boost_po_vm);
     }
     else
     {
@@ -82,11 +86,14 @@ bool PeriodicityApp::Init(const std::string& config_filename,
         param_pylk_iters,
         param_pylk_eps);
 
+  LOG(INFO) << "[PA] Min ROI Size (w, h): " << param_roi_min_width << " , " << param_roi_min_height;
+  LOG(INFO) << "[PA] Max ROI Size (w, h): " << param_roi_max_width << " , " << param_roi_max_height;
+
   roi_extraction = new obz::ROIExtraction(
         param_dbs_eps,
         param_dbs_min_elements,
-        cv::Size(5, 10),
-        cv::Size(100, 200),
+        cv::Size(param_roi_min_width, param_roi_min_height),
+        cv::Size(param_roi_max_width, param_roi_max_height),
         param_roi_min_motion_ppx,  // Min Avg Motion Per Pixel
         param_roi_min_motion_pft,  //
         param_roi_min_flow_ppx,  // Min Avg Optical Flow Per Pixel
