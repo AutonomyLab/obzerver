@@ -68,7 +68,7 @@ bool PeriodicityApp::Init(const std::string& config_filename,
     }
     else
     {
-      std::cerr << "Can not open the configuration file " << config_file << std::endl;
+      std::cerr << "Can not open the configuration file " << config_filename << std::endl;
       return false;
     }
   }
