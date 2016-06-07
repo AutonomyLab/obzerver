@@ -48,6 +48,8 @@ set(obzerver_HEADERS
     include/obzerver/periodicity_app.hpp
 )
 
+cmake_policy(SET CMP0046 OLD)
+
 #if(USE_CUSTOM_OPENCV)
 #  message(STATUS "Using custom OpenCV path: ${OpenCV_DIR}")
 #  find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR} NO_DEFAULT_PATH)
